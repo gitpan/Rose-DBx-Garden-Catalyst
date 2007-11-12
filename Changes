@@ -3,3 +3,11 @@ Revision history for Rose-DBx-Garden-Catalyst
 0.01    9 Nov 2007
         First version, released on an unsuspecting world.
 
+0.02    12 Nov 2007
+        * fix SYNOPSIS example doc for plant() syntax
+        * use Base controller and model classes for easier global management
+        * use YAML::Syck directly in View instead of hacked local plugin
+        * tweeks to default UI, including no timezones in default DateTime output
+          (because unless your system is actually in UTC, they're likely wrong)
+        * clean up YUI dependency URLs
+

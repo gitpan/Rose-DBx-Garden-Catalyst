@@ -15,17 +15,11 @@ use Rose::Object::MakeMethods::Generic (
     boolean  => [ 'tt' => { default => 1 }, ]
 );
 
+our $VERSION = '0.02';
+
 =head1 NAME
 
 Rose::DBx::Garden::Catalyst - plant Roses in your Catalyst garden
-
-=head1 VERSION
-
-Version 0.01
-
-=cut
-
-our $VERSION = '0.01';
 
 =head1 SYNOPSIS
 
@@ -44,7 +38,7 @@ our $VERSION = '0.01';
                     tt              => 1,  # make Template Toolkit files
                     );
                     
-    $garden->plant('MyApp');
+    $garden->plant('MyApp/lib');
     
     # run your script
     > perl mk_cat_garden.pl
@@ -97,6 +91,14 @@ sub primary_key_uri_escaped {
 EOF
 }
 
+=head2 init_catalyst_prefix
+
+Defaults to 'MyApp'.
+
+=cut
+
+sub init_catalyst_prefix {'MyApp'}
+
 =head2 plant( I<path/to/my/catapp> )
 
 Override the base method to create Catalyst-related files in addition
@@ -148,6 +150,13 @@ sub make_catalyst {
     # our TT View
     $self->_make_file( join( '::', $catprefix, 'View', 'RDGC' ),
         $self->_make_view );
+
+    # base Controller and Model classes
+    $self->_make_file(
+        join( '::', $catprefix, 'Base', 'Controller', 'RHTMLO' ),
+        $self->_make_base_rhtmlo_controller );
+    $self->_make_file( join( '::', $catprefix, 'Base', 'Model', 'RDBO' ),
+        $self->_make_base_rdbo_model );
 
     # sort so menu comes out sorted
     for my $class ( sort @form_classes ) {
@@ -318,7 +327,7 @@ sub _tt_stub_view {
     FOREACH f IN fields.order;
         fields.readonly.\$f = 1;
     END;
-    PROCESS rdgc/edit.tt;
+    PROCESS rdgc/edit.tt  buttons = 0;
 %]
 EOF
 }
@@ -365,6 +374,8 @@ sub _make_controller {
     my $object_name
         = $self->convention_manager->class_to_table_singular($rdbo_class);
 
+    my $catalyst_prefix = $self->catalyst_prefix;
+
     my $base_rdbo_class = $self->garden_prefix;
 
     # TODO make a default accessor in base_code to calculate this?
@@ -375,7 +386,7 @@ sub _make_controller {
     return <<EOF;
 package $contr_class;
 use strict;
-use base qw( CatalystX::CRUD::Controller::RHTMLO );
+use base qw( ${catalyst_prefix}::Base::Controller::RHTMLO );
 use $form_class;
 
 __PACKAGE__->config(
@@ -388,6 +399,22 @@ __PACKAGE__->config(
     view_on_single_result   => 1,
     page_size               => 50,
 );
+
+1;
+    
+EOF
+
+}
+
+sub _make_base_rhtmlo_controller {
+    my $self            = shift;
+    my $catalyst_prefix = $self->catalyst_prefix;
+
+    return <<EOF;
+package ${catalyst_prefix}::Base::Controller::RHTMLO;
+use strict;
+use warnings;
+use base qw( CatalystX::CRUD::Controller::RHTMLO );
 
 sub default : Private {
     my (\$self, \$c) = \@_;
@@ -404,20 +431,35 @@ sub yui_datatable : Local {
 }
 
 1;
-    
-EOF
 
+EOF
+}
+
+sub _make_base_rdbo_model {
+    my $self      = shift;
+    my $catprefix = $self->catalyst_prefix;
+
+    return <<EOF;
+package ${catprefix}::Base::Model::RDBO;
+use strict;
+use warnings;
+use base qw( CatalystX::CRUD::Model::RDBO );
+
+1;
+
+EOF
 }
 
 sub _make_model {
     my ( $self, $model_class, $form_class ) = @_;
     my $rdbo_class = $form_class;
     $rdbo_class =~ s/::Form$//;
+    my $catprefix = $self->catalyst_prefix;
 
     return <<EOF;
 package $model_class;
 use strict;
-use base qw( CatalystX::CRUD::Model::RDBO );
+use base qw( ${catprefix}::Base::Model::RDBO );
 __PACKAGE__->config(
     name                    => '$rdbo_class',
     page_size               => 50,
@@ -438,7 +480,9 @@ package ${cat_class}::View::RDGC;
 use strict;
 use warnings;
 use base qw( Catalyst::View::TT );
+use Carp;
 use JSON::XS ();
+use YAML::Syck ();
 use Data::Dump qw( dump );
 
 __PACKAGE__->config(TEMPLATE_EXTENSION => '.tt');
@@ -452,6 +496,13 @@ sub dump_data {
     \$d =~ s/>/&gt;/g;
     \$d =~ s,\n,<br/>\n,g;
     return "<pre>\$d</pre>";
+}
+
+# read yaml file
+sub read_yaml {
+    my \$self = shift;
+    my \$file = shift or croak "need YAML file";
+    return YAML::Syck::LoadFile(\$file);
 }
 
 
@@ -594,6 +645,8 @@ __form__
 # specific a specific field order with the 'fields.order' array.
 # the 'readonly' for values that should not be edited
 # but should be displayed (as with creation timestamps, etc)
+#
+# TODO some default JS validation would be nice here.
 
 # DEFAULT didn't work as expected here.
 UNLESS fields.size;
@@ -603,7 +656,7 @@ UNLESS fields.order.size;
     fields.order    = form.field_names;
 END;
 
-USE date(format = '%Y-%m-%d %H:%M:%S %Z');  # add locale if you want
+USE date(format = '%Y-%m-%d %H:%M:%S');  # add locale if you want
 %]
 
 [%  FOREACH fname = fields.order;
@@ -662,24 +715,34 @@ __edit__
 [%# generic edit screen for forms %]
 
  [% PROCESS rdgc/header.tt %]
+ [% SET oid = object.primary_key_uri_escaped %]
  
  <div id="main">
  
  <form method="post" 
-       action="[% c.uri_for(object_id, 'save') %]"
+       action="[% c.uri_for(oid, 'save') %]"
        class="rdgc"
        >
   <fieldset>
+   [% IF !buttons.defined || buttons != 0 %]
    <legend>Edit [% c.action.namespace %] [% object_id %]</legend>
+   [% ELSE %]
+   <legend>
+    <a href="[% c.uri_for('/' _ c.action.namespace, oid, 'edit' ) %]"
+      >Edit [% c.action.namespace %] [% object_id %]</a>
+   </legend>
+   [% END %]
     
     [% PROCESS rdgc/form.tt %]
     
+    [% UNLESS buttons == 0 %]
     <label><!-- satisfy css --></label>
     <input class="button" type="submit" name="save" value="Save" />
     <input class="button" type="reset" value="Reset" />
     [% IF object_id && !no_delete %]
         <input class="button" type="submit" name="_delete" value="Delete"
             onclick="return confirm('Really delete?')" />
+    [% END %]
     [% END %]
     
   </fieldset>
@@ -1038,7 +1101,7 @@ __results_json__
     PROCESS rdgc/yui_datatable_setup.tt;
     SET records = [];
     SET data    = {};
-    USE date(format = '%Y-%m-%d %H:%M:%S %Z');  # add locale if you want
+    USE date(format = '%Y-%m-%d %H:%M:%S');  # add locale if you want
     FOR r IN results.results;
         record = {};
         FOR f IN datatable.col_keys;
@@ -1173,12 +1236,7 @@ __header__
 
   <!-- Core + Skin CSS -->
   <link rel="stylesheet" type="text/css" 
-        href="http://yui.yahooapis.com/2.3.1/build/menu/assets/skins/sam/menu.css">
-  <link rel="stylesheet" type="text/css" 
-        href="http://yui.yahooapis.com/2.3.1/build/datatable/assets/skins/sam/datatable.css">
-  <link rel="stylesheet" type="text/css" 
-        href="http://yui.yahooapis.com/2.3.1/build/logger/assets/skins/sam/logger.css">
-
+        href="http://yui.yahooapis.com/2.3.1/build/assets/skins/sam/skin.css">
 
   <!-- Rose Garden style -->
   <link rel="stylesheet" type="text/css" media="all"
@@ -1186,17 +1244,12 @@ __header__
 
 
 <!-- js -->
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/yahoo-dom-event/yahoo-dom-event.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/element/element-beta-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/container/container_core-min.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/utilities/utilities.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/container/container-min.js"></script>
   <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/menu/menu-min.js"></script>
   <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/logger/logger-min.js"></script>
-  
   <script type="text/javascript" src="http://www.json.org/json.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/connection/connection-min.js"></script>
-  <!-- script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/dragdrop/dragdrop-min.js"></script -->
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/utilities/utilities.js"></script>
-  <script type="text/javascript" src="http://developer.yahoo.com/yui/build/history/history-beta.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/history/history-beta-min.js"></script>
   <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/datatable/datatable-beta-min.js"></script>
   <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/datasource/datasource-beta-min.js"></script>
   
@@ -1232,8 +1285,7 @@ __header__
  [%
     # default is to just load menu.yml files from disk each time
     # but could also hardcode menu hash here (or ....).
-    USE YAMLSyck;
-    SET schema_menu  = YAMLSyck.undumpfile(c.path_to('root', 'rdgc', 'schema_menu.yml'));
+    SET schema_menu  = c.view('RDGC').read_yaml(c.path_to('root', 'rdgc', 'schema_menu.yml'));
     PROCESS rdgc/menu.tt menu = schema_menu;
   %]                                                                           
 
