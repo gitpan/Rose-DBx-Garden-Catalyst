@@ -10,7 +10,7 @@ WriteMakefile(
     PL_FILES            => {},
     PREREQ_PM => {
         'Test::More' => 0,
-        'Rose::DBx::Garden' => 0.02,
+        'Rose::DBx::Garden' => 0.04,
         'Catalyst'          => 5.7,
         'YAML::Syck'        => 0,
         'JSON::XS'          => 0,
@@ -20,9 +20,11 @@ WriteMakefile(
         'Path::Class'       => 0,
         'Template'          => 0,
         'Catalyst::View::TT' => 0,
-        'CatalystX::CRUD' => 0.07,
-        'CatalystX::CRUD::Model::RDBO' => 0.05,
-        'CatalystX::CRUD::Controller::RHTMLO' => 0.05
+        'CatalystX::CRUD' => 0.12,
+        'CatalystX::CRUD::Model::RDBO' => 0.06,
+        'CatalystX::CRUD::Controller::RHTMLO' => 0.08,
+        'Scalar::Util'     => 0,
+
 
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

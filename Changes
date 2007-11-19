@@ -11,3 +11,13 @@ Revision history for Rose-DBx-Garden-Catalyst
           (because unless your system is actually in UTC, they're likely wrong)
         * clean up YUI dependency URLs
 
+0.03    19 Nov 2007
+        * YUI support for related records
+        * refactored all tt files into Templates class
+        * rename yui_datatable* templates to match url convention
+        * include json.js in core dist.
+        * add Create/Search to menu
+        * bumped req versions of CatalystX::CRUD::*
+
+
+

@@ -11,11 +11,12 @@ use Tree::Simple;
 use Tree::Simple::Visitor::ToNestedHash;
 
 use Rose::Object::MakeMethods::Generic (
-    'scalar' => 'catalyst_prefix',
-    boolean  => [ 'tt' => { default => 1 }, ]
+    'scalar'                => 'catalyst_prefix',
+    'scalar --get_set_init' => 'template_class',
+    boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 NAME
 
@@ -51,6 +52,8 @@ Rose::DBx::Garden::Catalyst - plant Roses in your Catalyst garden
 
 =head1 DESCRIPTION
 
+B<** DEVELOPMENT RELEASE -- API SUBJECT TO CHANGE **>
+
 Rose::DBx::Garden::Catalyst extends Rose::DBx::Garden to create
 Catalyst components that use the RDBO and RHTMLO classes that the Garden
 class produces.
@@ -65,6 +68,15 @@ Only new or overridden methods are documented here.
 
 =cut
 
+=head2 init_template_class
+
+If the B<tt> config option is true, use the template_class() class
+for the raw snippets of presentation code. Default is Rose::DBx::Garden::Catalyst::Templates.
+
+=cut
+
+sub init_template_class {'Rose::DBx::Garden::Catalyst::Templates'}
+
 =head2 init_base_code
 
 Override the base method to create methods useful to RDBO classes
@@ -74,8 +86,14 @@ used in Catalyst.
 
 sub init_base_code {
     return <<EOF;
+
+use base qw( Rose::DB::Object::Helpers );
+use Scalar::Util qw( blessed );
+
 # primary key value generator
-# used by Rose::DBx::Garden::Catalyst-generated code
+# right now there is no support for multi-value PKs
+# but this method would support the URI-encoding of such
+# values when/if they are supported in CatalystX::...::RHTMLO
 sub primary_key_uri_escaped {
     my \$self = shift;
     my \$pk =
@@ -88,6 +106,222 @@ sub primary_key_uri_escaped {
                 \$self->meta->primary_key_column_names );
     return \$pk;
 }
+
+sub flatten {
+    my \$self = shift;
+    my \%flat = \%{ \$self->column_value_pairs };
+    for ( keys \%flat ) {
+        if ( blessed( \$flat{\$_} ) and \$flat{\$_}->isa('DateTime') ) {
+            \$flat{\$_} = \$flat{\$_}->epoch;
+        }
+    }
+    for my \$rel ( \$self->meta->relationships ) {
+        my \$method = \$rel->name;
+        my \$val    = \$self->\$method;
+        next unless defined \$val;
+        if ( ref \$val eq 'ARRAY' ) {
+            \$flat{\$method} 
+                = [ map { scalar( \$_->column_values_as_yaml ) } \@\$val ];
+        }
+        elsif ( blessed(\$val) and \$val->isa('Rose::DB::Object') ) {
+            \$flat{\$method} = \$val->flatten;
+        }
+        else {
+            \$flat{\$method} = \$val->flatten;
+        }
+    }
+    return \\\%flat;
+}
+
+
+EOF
+}
+
+=head2 init_base_form_class_code
+
+Custom base Form code to implement features that template will require.
+
+=cut
+
+sub init_base_form_class_code {
+    return <<EOF;
+use Carp;
+use Data::Dump qw( dump );
+
+=head2 show_related_fields
+
+Boolean indicating whether the View should provide links to related
+tables based on RDBO foreign_keys() and relationships().
+
+Default is true.
+
+=cut
+
+sub show_related_fields { 1 }
+
+=head2 show_relationships
+
+Boolean indicating whether the View should provide links to related
+tables based on RDBO relationship method names that do not have
+corresponding field names.
+
+=cut
+
+sub show_relationships { 1 }
+
+=head2 object_class
+
+Should return the name of the object class that this form class
+represents.
+
+=cut
+
+sub object_class { croak "must set object_class in Form subclass" }    
+
+=head2 relationships
+
+Returns arrayref of object_class() foreign_keys() and relationships().
+These are guaranteed to be unique with regard to name, 
+so any relationships that are merely wrappers that delegate 
+to a foreign_key object are ignored.
+
+=cut
+
+sub relationships {
+    my \$self = shift;
+    my \%seen;
+    my \@fks = \$self->object_class->meta->foreign_keys;
+    my \@rel = \$self->object_class->meta->relationships;
+    my \@return;
+    for my \$r (\@fks, \@rel) {
+        next if \$seen{\$r->name}++;
+        push(\@return, \$r);
+    }
+    return \\\@return;
+}
+
+=head2 show_related_field_using( I<foreign_object_class>, I<field_name> )
+
+Returns the name of a field to use for display from I<foreign_object_class>
+based on a relationship using I<field_name>.
+
+This magic is best explained via example. Say you have a 'person' object
+that is related to a 'user' object. The relationship is defined in the 'user'
+object as:
+
+ person_id => person.id
+ 
+where the id of the 'person' object is a related (foreign key) to the person_id
+value of the user object. In a form display for the 'user', you might want to display the name
+of the 'person' rather than the id, so show_related_field_using() will look
+up the first unique field (or fields) in the I<foreign_object_class> (in this case,
+the 'person' class) and return that field.
+
+ my \$field = \$form->show_related_field_using( 'RDBO::Person', 'person_id' )
+ 
+And because it's a method, you can override show_related_field_using() to perform
+different logic than simply looking up the first unique key in the I<foreign_object_class>.
+
+If no matching field is found, returns undef.
+
+=cut
+
+sub show_related_field_using {
+    my \$self   = shift;
+    my \$fclass = shift or croak "foreign_object_class required";
+    my \$field  = shift or croak "field_name required";
+    
+    my \@ukeys = \$fclass->meta->unique_keys_column_names;
+    if (\@ukeys) {
+        for my \$k (\@ukeys) {
+            if (scalar(\@\$k) == 1) {
+                return \$k->[0];
+            }
+        }
+    }
+    return undef;
+}
+
+=head2 related_field( I<field_name> )
+
+If I<field_name> represents a foreign key or other relationship to a different
+object class (and hence a different form class), then related_field() will
+return a hashref with relationship summary information.
+
+If I<field_name> does not represent a related class, returns undef.
+
+=cut 
+
+sub related_field {
+    my \$self         = shift;
+    my \$field_name   = shift or croak "field_name required";
+    
+    # interrogate related classes
+    for my \$rel ( \@{ \$self->relationships } ) {
+    
+        my \%info;
+    
+        if ( \$rel->can('column_map') ) {
+            my \$colmap         = \$rel->column_map;
+            next unless exists \$colmap->{\$field_name};
+            \$info{foreign_col} = \$colmap->{\$field_name};
+        }
+        else {
+            warn "\$field_name is ManyToMany\\n";
+        }
+
+        return \$self->relationship_info( \$rel, \\\%info );
+    }
+    
+    return undef;
+}
+
+=head2 relationship_info( I<relationship_object> [, I<info_hashref> ] )
+
+Returns a hashref of relationship summary information for I<relationship_object>.
+If I<info_hashref> is used, updates and returns that hashref.
+
+=cut
+
+sub relationship_info {
+    my \$self = shift;
+    my \$rel  = shift or croak "relationship object required";
+    my \$info = shift || {};
+    
+    \$info->{type}      = \$rel->type;
+    \$info->{method}    = \$rel->name;
+    
+    my \$url_method;
+    
+    if ( \$info->{type} eq 'many to many' ) {
+        my \$map_to         = \$rel->map_to;
+        my \$foreign_rel    = \$rel->map_class->meta->relationship( \$map_to );
+        \$info->{map_class} = \$rel->map_class;
+        \$info->{class}     = \$foreign_rel->class;
+        \$info->{table}     = \$info->{class}->meta->table;
+        \$info->{schema}    = \$info->{class}->meta->schema;
+        \$info->{map_to}    = \$map_to;
+        \$info->{map_from}  = \$rel->map_from;
+    }
+    else {
+        \$info->{class}  = \$rel->class;
+        \$info->{table}  = \$info->{class}->meta->table;
+        \$info->{schema} = \$info->{class}->meta->schema;
+        \$info->{cmap}   = \$rel->column_map;
+    }
+    
+    # create URL
+    my \$c                  = \$self->app;  # Catalyst context object
+    my \$prefix             = \$self->garden_prefix;
+    my \$controller_name    = \$info->{class};
+    \$controller_name       =~ s/^\${prefix}:://;
+    \$info->{controller}    = \$c->controller( 'RDGC::' . \$controller_name );
+    \$info->{url}           = \$c->uri_for('/rdgc', 
+                                split(m/::/, lc( \$controller_name )));
+    
+    return \$info;     
+}
+
 EOF
 }
 
@@ -116,13 +350,24 @@ sub plant {
 
 Does the actual file creation of Catalyst files. Called by plant().
 
+I<class_names> should be a hash ref of RDBO => RHTMLO class names, as returned
+by Rose::DBx::Garden->plant(). If you have existing RDBO and RHTMLO classes
+that have namespaces inconsistent with the conventions in Rose::DBx::Garden,
+they B<should> still work. Just map the RDBO => RHTMLO classes in your
+I<class_names> hash ref.
+
 =cut
 
 sub make_catalyst {
-    my $self         = shift;
-    my $garden       = shift or croak "array of class names required";
-    my $path         = shift or croak "path required";
-    my @form_classes = grep {m/::Form$/} @$garden;
+    my $self   = shift;
+    my $garden = shift or croak "hash of class names required";
+    my $path   = shift or croak "path required";
+    unless ( ref($garden) eq 'HASH' ) {
+        croak "class_names must be a HASH ref";
+    }
+    my %rhtmlo2rdbo = reverse %$garden;
+    delete $rhtmlo2rdbo{1};
+    my @form_classes = keys %rhtmlo2rdbo;
 
     # make sure this looks like a Catalyst dir.
     # use same criteria as the Catalst
@@ -134,7 +379,7 @@ sub make_catalyst {
             . "(no Makefile.PL or Build.PL file)";
     }
 
-    # make CRUD controllers and models for each Form class
+    # make CRUD controllers and models for each Form class.
     # we only care about Form classes because those do not
     # represent map classes, which should be invisible to normal usage.
 
@@ -159,21 +404,21 @@ sub make_catalyst {
         $self->_make_base_rdbo_model );
 
     # sort so menu comes out sorted
-    for my $class ( sort @form_classes ) {
-        my $bare = $class;
+    for my $rhtmlo ( sort @form_classes ) {
+        my $rdbo = $rhtmlo2rdbo{$rhtmlo};
+        my $bare = $rdbo;
         $bare =~ s/^${gardprefix}:://;
-        $bare =~ s/::Form$//;
         my $controller_class
             = join( '::', $catprefix, 'Controller', 'RDGC', $bare );
         my $model_class = join( '::', $catprefix, 'Model', 'RDGC', $bare );
         $self->_make_file(
             $controller_class,
             $self->_make_controller(
-                $class, $controller_class, $model_class
+                $rdbo, $rhtmlo, $controller_class, $model_class
             )
         );
         $self->_make_file( $model_class,
-            $self->_make_model( $model_class, $class ) );
+            $self->_make_model( $model_class, $rdbo ) );
         push( @controllers, $controller_class );
 
         # create menus, split by :: into flyout levels (max 4 deep)
@@ -218,7 +463,7 @@ sub make_catalyst {
     # core .tt files
     my $tt = $self->_get_tt;
 
-    for my $file ( sort grep { $_ ne 'css' } keys %$tt ) {
+    for my $file ( sort grep { !m/^(css|js|json_js)$/ } keys %$tt ) {
         $self->_write_tt_file(
             file( $tt_dir, 'rdgc', $file . '.tt' )->stringify,
             $tt->{$file} );
@@ -230,10 +475,16 @@ sub make_catalyst {
         { id => 'schema_menu', items => \@menu_items }
     );
 
-    # css goes in static
+    # css and js go in static
     $self->_write_tt_file(
         file( $tt_dir, 'static', 'rdgc', 'rdgc.css' )->stringify,
         $tt->{css}, qr{.css} );
+    $self->_write_tt_file(
+        file( $tt_dir, 'static', 'rdgc', 'rdgc.js' )->stringify,
+        $tt->{js}, qr{.js} );
+    $self->_write_tt_file(
+        file( $tt_dir, 'static', 'rdgc', 'json.js' )->stringify,
+        $tt->{json_js}, qr{.js} );
 
     # stubs for each controller
     for my $ctrl (@controllers) {
@@ -266,6 +517,10 @@ sub _make_menu_items {
         if ( keys %{ $children->{$child} } ) {
             $item{items}
                 = $self->_make_menu_item( $item{href}, $children->{$child} );
+        }
+        elsif ( $child !~ m/^(Search|Create)$/ ) {
+            $item{items} = $self->_make_menu_items( $item{href},
+                { Search => {}, Create => {} } );
         }
         push( @items, \%item );
     }
@@ -310,7 +565,7 @@ EOF
 sub _tt_stub_edit {
     return <<EOF;
 [% 
-    SET fields      = {};
+    fields      = {};
     fields.order    = form.field_names;
     fields.readonly = {'created' = 1, 'modified' = 1}; # common auto-timestamp names
     PROCESS rdgc/edit.tt;
@@ -321,7 +576,7 @@ EOF
 sub _tt_stub_view {
     return <<EOF;
 [% 
-    SET fields      = {};
+    fields      = {};
     fields.order    = form.field_names;
     fields.readonly = {};
     FOREACH f IN fields.order;
@@ -365,9 +620,7 @@ EOF
 }
 
 sub _make_controller {
-    my ( $self, $form_class, $contr_class, $model_class ) = @_;
-    my $rdbo_class = $form_class;
-    $rdbo_class =~ s/::Form$//g;
+    my ( $self, $rdbo_class, $form_class, $contr_class, $model_class ) = @_;
     my $tmpl
         = file( $self->_tmpl_path_from_controller($contr_class), 'edit.tt' );
 
@@ -375,10 +628,14 @@ sub _make_controller {
         = $self->convention_manager->class_to_table_singular($rdbo_class);
 
     my $catalyst_prefix = $self->catalyst_prefix;
-
     my $base_rdbo_class = $self->garden_prefix;
 
-    # TODO make a default accessor in base_code to calculate this?
+    # just the model short name is wanted.
+    # otherwise we get false partial matches.
+    $model_class =~ s/^${catalyst_prefix}::Model:://;
+
+    # TODO make a default accessor in base_code to calculate this
+    # for multiple PK support.
     my $pk;
     my @pk = $rdbo_class->meta->primary_key_column_names;
     $pk = $pk[0];
@@ -391,13 +648,14 @@ use $form_class;
 
 __PACKAGE__->config(
     form_class              => '$form_class',
-    init_form               => 'init_with_object',  # TODO init_with_${object_name}
-    init_object             => 'object_from_form',  # TODO ${object_name}_from_form
+    init_form               => 'init_with_${object_name}',
+    init_object             => '${object_name}_from_form',
     default_template        => '$tmpl',
     model_name              => '$model_class',
-    primary_key             => '$pk',               # TODO may need to adjust if multiple
+    primary_key             => '$pk',   # TODO will need to adjust if multiple
     view_on_single_result   => 1,
     page_size               => 50,
+    garden_class            => '$base_rdbo_class',
 );
 
 1;
@@ -415,10 +673,22 @@ package ${catalyst_prefix}::Base::Controller::RHTMLO;
 use strict;
 use warnings;
 use base qw( CatalystX::CRUD::Controller::RHTMLO );
+use Carp;
+use Data::Dump qw( dump );
+
+my \$json_mime = 'application/json; charset=utf-8';
 
 sub default : Private {
     my (\$self, \$c) = \@_;
     \$c->response->redirect(\$c->uri_for('count'));
+}
+
+# default is all field names,
+# but you can override in a subclass to return a subset of field names.
+# see root/rdgc/yui_datatable_setup.tt
+sub yui_datatable_field_names {
+    my (\$self) = \@_;
+    return \$self->form->field_names;
 }
 
 # YUI DataTable support
@@ -426,8 +696,114 @@ sub yui_datatable : Local {
     my (\$self, \$c, \@arg) = \@_;
     \$c->stash->{view_on_single_result} = 0;
     \$self->do_search(\$c, \@arg);
-    \$c->stash->{template} = 'rdgc/results_json.tt';
-    \$c->response->content_type('application/json');
+    \$c->stash->{template} = 'rdgc/yui_datatable.tt';
+    \$c->response->content_type(\$json_mime);
+}
+
+# YUI datatable count stats via json
+sub yui_datatable_count : Local {
+    my (\$self, \$c, \@arg) = \@_;
+    \$c->stash->{fetch_no_results} = 1;
+    \$c->stash->{view_on_single_result} = 0;
+    \$self->do_search(\$c, \@arg);
+    \$c->stash->{template} = 'rdgc/yui_datatable_count.tt';
+    \$c->response->content_type(\$json_mime);
+}
+
+#
+# NOTE that the rm_m2m and add_m2m urls assume single-column PKs
+#
+
+# rm_m2m for many2many **ONLY** -- will delete related row if you use it with
+# a one2many or many2one relationship
+sub rm_m2m : PathPart Chained('fetch') Args(3) {
+    my ( \$self, \$c, \$rel, \$foreign_pk, \$foreign_pk_value ) = \@_;
+    return if \$self->has_errors(\$c);
+    unless ( \$self->can_write(\$c) ) {
+        \$self->throw_error('Permission denied');
+        return;
+    }
+    
+    my \$obj = \$c->stash->{object};
+        
+    # re-set every related object except the one we want removed
+    my \@save;
+    for my \$o (\$obj->\$rel) {
+    
+        my \$v = \$o->\$foreign_pk;
+        next if \$v eq \$foreign_pk_value;
+        push \@save, \$o;
+    
+    }
+        
+    \$obj->\$rel( \\\@save );
+                 
+    # save changes
+    eval { \$self->save_obj(\$c, \$obj) };
+        
+    unless (\$\@) {
+        \$c->response->body('Ok');
+    }
+    else {
+        \$c->response->body("rm_m2m \$rel \$foreign_pk_value failed");
+    }
+}
+
+sub add_m2m : PathPart Chained('fetch') Args(3) {
+    my ( \$self, \$c, \$rel, \$foreign_pk, \$foreign_pk_value ) = \@_;
+    return if \$self->has_errors(\$c);
+    unless ( \$self->can_write(\$c) ) {
+        \$self->throw_error('Permission denied');
+        return;
+    }
+    
+    my \$obj = \$c->stash->{object};
+    my \$method = 'add_' . \$rel;
+    \$obj->\$method( { \$foreign_pk => \$foreign_pk_value } );
+                 
+    # save changes
+    \$self->save_obj(\$c, \$obj);
+    
+    # pull the newly associated record out and json-ify it for return
+    my \$record;
+    grep { \$record = \$_ if \$_->\$foreign_pk eq \$foreign_pk_value } \@{ \$obj->\$rel };
+    \$c->stash->{object} = \$record;
+    \$c->stash->{template} = 'rdgc/jsonify.tt';
+    \$c->response->content_type(\$json_mime);
+    
+}
+
+sub precommit {
+    my (\$self, \$c, \$obj) = \@_;
+    
+    # make empty ints NULL
+    for my \$col (\$obj->meta->columns) {
+        my \$name = \$col->name;
+        if (\$col->type =~ m/int/) {
+            if (defined \$obj->\$name && !length(\$obj->\$name)) {
+                \$obj->\$name(undef);
+            }
+        }
+    }
+    
+    1;
+}
+
+# override to allow for returning json results
+sub postcommit {
+    my (\$self, \$c, \$obj) = \@_;
+        
+    if (   exists \$c->req->params->{return}
+        && \$c->req->params->{return} eq 'json') {
+        
+        \$c->stash->{object}   = \$obj;  # is this necessary?
+        \$c->stash->{template} = 'rdgc/jsonify.tt';
+        \$c->response->content_type(\$json_mime);
+        
+    }
+    else {
+        \$self->NEXT::postcommit(\$c, \$obj);
+    }
 }
 
 1;
@@ -451,9 +827,7 @@ EOF
 }
 
 sub _make_model {
-    my ( $self, $model_class, $form_class ) = @_;
-    my $rdbo_class = $form_class;
-    $rdbo_class =~ s/::Form$//;
+    my ( $self, $model_class, $rdbo_class ) = @_;
     my $catprefix = $self->catalyst_prefix;
 
     return <<EOF;
@@ -485,7 +859,10 @@ use JSON::XS ();
 use YAML::Syck ();
 use Data::Dump qw( dump );
 
-__PACKAGE__->config(TEMPLATE_EXTENSION => '.tt');
+__PACKAGE__->config(
+    TEMPLATE_EXTENSION  => '.tt',
+    PRE_PROCESS         => 'rdgc/tt_config.tt',
+    );
 
 # virt method replacements for Dumper plugin
 sub dump_data {
@@ -535,6 +912,20 @@ EOF
 =head1 AUTHOR
 
 Peter Karman, C<< <karman at cpan.org> >>
+
+=head1 TODO
+
+=over
+
+=item client-side JS validation
+
+Should be straightforward since the Garden nows puts column-type as xhtml class value.
+
+=item RDGC tests
+
+Need a way to reliably test the JS.
+
+=back
 
 =head1 BUGS
 
@@ -603,11 +994,15 @@ under the same terms as Perl itself.
 
 =cut
 
-# cribbed from Catalyst::Helper
+# cribbed from Catalyst::Helper get_file()
 sub _get_tt {
-    my $self = shift;
+    my $self           = shift;
+    my $template_class = $self->template_class;
+    eval "require $template_class";
+    croak $@ if $@;
+
     local $/;
-    my $data = <DATA>;
+    my $data = eval "package $template_class; <DATA>";
     my @files = split /^__(.+)__\r?\n/m, $data;
     shift @files;
     my %tt;
@@ -619,930 +1014,3 @@ sub _get_tt {
 }
 
 1;    # End of Rose::DBx::Garden::Catalyst
-
-# all the .tt code down here
-#
-#
-
-__DATA__
-
-__default__
-[%# home page %]
-
- [% PROCESS rdgc/header.tt %]
- 
- <div id="main">
- 
- Welcome to the Rose Garden.
- 
- </div>
- 
- [% PROCESS rdgc/footer.tt %]
-
-__form__
-[%# generic RHTMLO form generator. %]
-[%
-# specific a specific field order with the 'fields.order' array.
-# the 'readonly' for values that should not be edited
-# but should be displayed (as with creation timestamps, etc)
-#
-# TODO some default JS validation would be nice here.
-
-# DEFAULT didn't work as expected here.
-UNLESS fields.size;
-    fields = { order = [], readonly = {} };
-END;
-UNLESS fields.order.size;
-    fields.order    = form.field_names;
-END;
-
-USE date(format = '%Y-%m-%d %H:%M:%S');  # add locale if you want
-%]
-
-[%  FOREACH fname = fields.order;
-    
-        # autocomplete magic
-        IF (form.field( fname ).can('autocomplete'));
-            u = form.field( fname ).url;
-            USE url = url( c.uri_for( u.0 ), u.1 );
-            PROCESS rdgc/autocomplete.tt
-                input = {
-                    label = form.field( fname ).xhtml_label
-                    url   = url
-                    id    = f
-                    value = form.field( fname ).input_value
-                };
-            "<br />\n";
-
-        # checkboxes
-        ELSIF (form.field( fname ).can('xhtml_checkbox'));
-            form.field(f).xhtml_label;
-            form.field(f).xhtml_checkbox;
-            "<br />\n";
-
-        # read-only fields
-        ELSIF (fields.readonly.exists( fname ));
-            form.field( fname ).xhtml_label;
-
-            "<span class='input'>";
-            IF form.field( fname ).isa('Rose::HTML::Form::Field::TextArea');
-                "<pre>"; form.field( fname ).output_value; "</pre>";
-            ELSIF form.field( fname ).isa('Rose::HTML::Form::Field::DateTime');
-              IF (form.field( fname ).internal_value.epoch.defined);
-                date.format( form.field( fname ).internal_value.epoch );
-              END;
-            ELSE;
-                form.field( fname ).output_value;
-            END;
-            "</span>";
-            "<br />\n";
-            
-        # hidden fields
-        ELSIF (form.field( fname ).isa('Rose::HTML::Form::Field::Hidden'));
-            form.field( fname ).xhtml;
-            
-        # default
-        ELSE;
-            form.field( fname ).xhtml_label;
-            form.field( fname ).xhtml;
-            "<br />\n";
-
-        END;    # IF/ELSE        
-    END;  # FOREACH
-%]
-
-__edit__
-[%# generic edit screen for forms %]
-
- [% PROCESS rdgc/header.tt %]
- [% SET oid = object.primary_key_uri_escaped %]
- 
- <div id="main">
- 
- <form method="post" 
-       action="[% c.uri_for(oid, 'save') %]"
-       class="rdgc"
-       >
-  <fieldset>
-   [% IF !buttons.defined || buttons != 0 %]
-   <legend>Edit [% c.action.namespace %] [% object_id %]</legend>
-   [% ELSE %]
-   <legend>
-    <a href="[% c.uri_for('/' _ c.action.namespace, oid, 'edit' ) %]"
-      >Edit [% c.action.namespace %] [% object_id %]</a>
-   </legend>
-   [% END %]
-    
-    [% PROCESS rdgc/form.tt %]
-    
-    [% UNLESS buttons == 0 %]
-    <label><!-- satisfy css --></label>
-    <input class="button" type="submit" name="save" value="Save" />
-    <input class="button" type="reset" value="Reset" />
-    [% IF object_id && !no_delete %]
-        <input class="button" type="submit" name="_delete" value="Delete"
-            onclick="return confirm('Really delete?')" />
-    [% END %]
-    [% END %]
-    
-  </fieldset>
- </form>
- 
- </div>
- 
- [% PROCESS rdgc/footer.tt %]
-
-__search__
-[%# generic search screen %]
-
-  [% PROCESS rdgc/header.tt %]
-  
-  <div id="main">
-  
-  <form method="get"
-        action="[% c.uri_for('search') %]"
-        class="rdgc"
-        >
-   <fieldset>
-    <legend>Search [% c.action.namespace %]</legend>
-     
-     [% PROCESS rdgc/form.tt %]
-    
-    <label><!-- satisfy css --></label>
-    <input class="button" type="submit" name="search" value="Search" />
-    <input class="button" type="reset" value="Reset" />
-  </fieldset>
- </form>
- 
- [% IF results.count %]
-  [% PROCESS rdgc/results.tt %]
- [% ELSIF results.plain_query_str %]
-  <div>Sorry, no results for <strong>[% results.plain_query_str %]</strong>.</div>
- [% END %]
- 
- </div>
- 
- [% PROCESS rdgc/footer.tt %]
-
-__list__
-[%# generic browse screen %]
-
-  [% PROCESS rdgc/header.tt %]
-  
-  <div id="main"> 
- [% IF results.count %]
-  [% PROCESS rdgc/results.tt %]
- [% ELSIF results.plain_query_str %]
-  <div>Sorry, no results for <strong>[% results.plain_query_str %]</strong>.</div>
- [% END %]
- </div>
- 
- [% PROCESS rdgc/footer.tt %]
-   
-
-__yui_datatable_setup__
-[% # set up some same defaults
-
-    DEFAULT datatable       = {};
-    DEFAULT datatable.pk    = 'id';
-    DEFAULT datatable.columns = [];
-    DEFAULT datatable.url   = c.uri_for('yui_datatable', results.query.plain_query);
-    UNLESS datatable.url.match('\?');
-        datatable.url = datatable.url _ '?';
-    END;
-    
-    IF !datatable.columns.size;
-        FOREACH f IN form.field_names;
-            datatable.columns.push( { key = f, label = form.field(f).label.localized_text, sortable = c.view('RDGC').true } );
-        END;
-    END;
-    
-    # create list of column key values from .columns
-    datatable.col_keys = [];
-    FOREACH col IN datatable.columns;
-        datatable.col_keys.push( col.key );
-    END;
-    
-    #datatable.dump_data;
-
-%]
-
-__yui_datatable_js__
-[%# generate JS for YUI datatable widget.
-    format of 'datatable' should be:
-    
-    datatable = {
-        pk          = 'id'  # primary key
-        columns     = [ # rendered as json
-                {key:"id", label:"ID", sortable:true},
-                ...
-            ]
-    See http://developer.yahoo.com/yui/examples/datatable/dt_server_pag_sort.html
-%]
-[% PROCESS rdgc/yui_datatable_setup.tt %]
-<style type="text/css">
- .yui-skin-sam .yui-dt-body { cursor:pointer; } /* when rows are selectable */
-</style>
-<script type="text/javascript">
-  YAHOO.log("starting datatable", 'info', 'dt');
-  
-  var MyResultsMatrix = new function() {
-        // Function to return initial config values,
-        // which could be the default set, or parsed from a bookmarked state
-        this.getInitialConfig = function() {
-            // Parse bookmarked state
-            var tmpHash = {};
-            if(location.hash.substring(1).length > 0) {
-                var sBookmark = location.hash.substring(1);
-                sBookmark = sBookmark.substring(sBookmark.indexOf("=")+1);
-                var aPairs = sBookmark.split("&");
-                for(var i=0; i<aPairs.length; i++) {
-                    var sPair = aPairs[i];
-                    if(sPair.indexOf("=") > 0) {
-                        var n = sPair.indexOf("=");
-                        var sParam = aPairs[i].substring(0,n);
-                        var sValue = aPairs[i].substring(n+1);
-                        tmpHash[sParam] = sValue;
-                    }
-                }
-            }
-
-            // Validate values
-
-            var newPageSize = parseInt(tmpHash["_page_size"],10);
-            if(!YAHOO.lang.isNumber(newPageSize)) {
-                newPageSize = [% results.pager.entries_per_page %];
-            }
-
-            var newPage = parseInt(tmpHash["_page"],10);
-            if(!YAHOO.lang.isValue(newPage)) {
-                 newPage = 1;
-            }
-
-            var newSort = tmpHash["_sort"];
-            if(!YAHOO.lang.isValue(newSort)) {
-                newSort = "[% datatable.pk %]";
-            }
-
-            var newDir = tmpHash["_dir"];
-            if(!YAHOO.lang.isValue(newDir)) {
-                newDir = "asc";
-            }
-            
-            // private paginator because the YUI Paginator is broken
-            this.myPaginator = {
-                entries_per_page: newPageSize,
-                current_page:     newPage,
-                last_page:        [% results.pager.last_page %],
-                total:            [% results.count %]
-            };
-
-            return {
-                sortedBy: {
-                    key: newSort,
-                    dir: newDir
-                },
-                initialRequest: "&_page_size="+newPageSize+"&_page="+newPage+"&_sort="+newSort+"&_dir="+newDir,
-                selectionMode: "single"
-            };
-        };
-                
-        this.initialConfig = this.getInitialConfig();
-        this.myBookmarkedState = YAHOO.util.History.getBookmarkedState("myDataTable");
-        this.myInitialState = this.myBookmarkedState ||
-               ("&_page_size="  + this.myPaginator.entries_per_page +
-                "&_page="       + this.myPaginator.current_page +
-                "&_sort="   + this.initialConfig.sortedBy.key +
-                "&_dir="    + this.initialConfig.sortedBy.dir);
-        this.myBookmarkHandler = function(newBookmark) {
-            var oSelf = MyResultsMatrix;
-            oSelf.myDataSource.sendRequest(newBookmark, oSelf.myDataTable.onDataReturnInitializeTable, oSelf.myDataTable);
-        };
-        
-        YAHOO.util.History.register("myDataTable", this.myInitialState, this.myBookmarkHandler);
-        YAHOO.util.History.initialize();
-        YAHOO.util.History.onLoadEvent.subscribe(function() {
-            // Column definitions
-            var myColumnDefs = [% datatable.columns.as_json %];
-
-            // Instantiate DataSource
-            this.myDataSource = new YAHOO.util.DataSource("[% datatable.url %]");
-            this.myDataSource.responseType = YAHOO.util.DataSource.TYPE_JSON;
-            this.myDataSource.responseSchema = {
-                resultsList: "records",
-                fields: [% datatable.col_keys.as_json %]
-            };
-
-            // Instantiate DataTable
-            this.myDataTable = new YAHOO.widget.DataTable("results_matrix", myColumnDefs,
-                    this.myDataSource, this.initialConfig);
-                    
-            // take user to edit-able record
-            this.gotoEditRow = function(oArgs) {
-                // get pk value for this row
-                YAHOO.util.Event.stopEvent(oArgs.event);
-                var oSelf       = MyResultsMatrix;
-                var oDataTable  = oSelf.myDataTable;
-                var target      = oArgs.target;
-                var record      = oDataTable.getRecord(target);
-                var pk          = record.getData('[% datatable.pk %]');
-                var newurl      = '[% c.uri_for('') %]/' + pk + '/edit';
-                window.location.href = newurl;
-            };
-            
-            // can only edit one row at a time
-            this.myDataTable.set("selectionMode", "single");
-                    
-            // make each row click-able link to the editable record
-            // Subscribe to events for row selection
-            this.myDataTable.subscribe("rowMouseoverEvent", this.myDataTable.onEventHighlightRow);
-            this.myDataTable.subscribe("rowMouseoutEvent",  this.myDataTable.onEventUnhighlightRow);
-            this.myDataTable.subscribe("rowClickEvent",     this.gotoEditRow);
-
-            // Programmatically select the first row immediately
-            this.myDataTable.selectRow(this.myDataTable.getTrEl(0));
-
-            // Programmatically bring focus to the instance so arrow selection works immediately
-            this.myDataTable.focus();
-
-            // Custom code to parse the raw server data for Paginator values and page links and sort UI
-            this.myDataSource.doBeforeCallback = function(oRequest, oRawResponse, oParsedResponse) {
-                var oSelf           = MyResultsMatrix;
-                var oDataTable      = oSelf.myDataTable;
-                var oRawResponse    = oRawResponse.parseJSON();
-                var recordsReturned = parseInt(oRawResponse.recordsReturned, 10);
-                var page            = parseInt(oRawResponse.page, 10);
-                var pageSize        = parseInt(oRawResponse.pageSize, 10);
-                var totalRecords    = parseInt(oRawResponse.totalRecords, 10);
-                var sort            = oRawResponse.sort;
-                var dir             = oRawResponse.dir;
-                
-                var startIndex      = (page -1) * pageSize;
-                var endIndex        = startIndex + recordsReturned;
-
-                // update paginator with new values
-                oSelf.myPaginator.current_page       = page;
-                oSelf.myPaginator.entries_per_page   = pageSize;
-                               
-                // Update the links UI
-                YAHOO.util.Dom.get("prevLink").innerHTML = (startIndex == 0) ? "" :
-                        "<a href=\"#previous\" alt=\"Show previous items\">&#171;&nbsp;Prev</a>" ;
-                YAHOO.util.Dom.get("nextLink").innerHTML = (endIndex >= totalRecords) ? "" :
-                        "<a href=\"#next\" alt=\"Show next items\">Next&nbsp;&#187;</a>";
-                YAHOO.util.Dom.get("startIndex").innerHTML = startIndex + 1;
-                YAHOO.util.Dom.get("endIndex").innerHTML   = endIndex;
-                YAHOO.util.Dom.get("ofTotal").innerHTML    = " of " + totalRecords;
-
-                // Update the config sortedBy with new values
-                var newSortedBy = {
-                    key: sort,
-                    dir: dir
-                }
-                oDataTable.set("sortedBy", newSortedBy);
-
-                return oParsedResponse;
-            };
-
-            // Hook up custom pagination
-            this.getPage = function(nPage, nResults) {
-                // If a new value is not passed in
-                // use the old value
-                if(!YAHOO.lang.isValue(nResults)) {
-                    nResults = this.myPaginator.entries_per_page;
-                }
-                // Invalid value
-                if(!YAHOO.lang.isValue(nPage)) {
-                    return;
-                }
-                if (nPage < 1) {
-                    nPage = 1;
-                }
-
-                var oSortedBy = this.myDataTable.get("sortedBy");
-                var newBookmark = "_page=" + nPage + "&_page_size=" + nResults +
-                        "&_sort=" + oSortedBy.key + "&_dir=" + oSortedBy.dir ;                        
-                YAHOO.util.History.navigate("myDataTable", newBookmark);
-            };
-            this.getPreviousPage = function(e) {
-                YAHOO.util.Event.stopEvent(e);
-                // Already at first page
-                if(this.myPaginator.current_page == 1) {
-                    return;
-                }
-                this.getPage(this.myPaginator.current_page - 1);
-            };
-            this.getNextPage = function(e) {
-                YAHOO.util.Event.stopEvent(e);
-                
-                var paginator   = this.myPaginator;
-                var page        = paginator.current_page;
-                var lastPage    = paginator.last_page;
-                                
-                // Already at last page
-                if(page >= lastPage) {
-                    return;
-                }
-                this.getPage(page + 1);
-            };
-            YAHOO.util.Event.addListener(YAHOO.util.Dom.get("prevLink"), "click", this.getPreviousPage, this, true);
-            YAHOO.util.Event.addListener(YAHOO.util.Dom.get("nextLink"), "click", this.getNextPage, this, true);
-
-            // Override function for custom sorting
-            this.myDataTable.sortColumn = function(oColumn) {
-                // Which direction
-                var sDir = "asc";
-                // Already sorted?
-                if(oColumn.key === this.get("sortedBy").key) {
-                    sDir = (this.get("sortedBy").dir === "asc") ? "desc" : "asc";
-                }
-
-                var oPag = this.get("paginator");
-                var newBookmark = "&_sort=" + oColumn.key + "&_dir=" + sDir + "&_page_size=" + oPag.rowsThisPage + "&_page=1";
-                YAHOO.util.History.navigate("myDataTable", newBookmark);
-            };
-        }, this, true);
-  };
-
-  
-</script>
-
-__results__
-[%# search result matrix %]
-[%
-    # this template called by rdgc/search.tt if there
-    # are any search results to display
-%]
-
-<div id="results">
-
- <div>
- [% results.count %] total matches
- [% IF search.form.as_excel # TODO make the Excel export a feature of CRUD %]
-    [% bullet %]
-    <a href="[% search.form.as_excel %]" >Export as Excel</a>
- [% END %]
- </div>
-
- <div id="dt-page-nav">
-    <span id="prevLink"></span>
-    Showing items
-    <span id="startIndex">0</span> &ndash; <span id="endIndex">[% results.query.limit %]</span>
-    <span id="ofTotal"></span> <span id="nextLink"></span>
- </div>
-
- <div id="results_matrix"></div>
- 
- [% PROCESS rdgc/yui_datatable_js.tt %]
-
-</div>
-
-__results_json__
-[%
-    PROCESS rdgc/yui_datatable_setup.tt;
-    SET records = [];
-    SET data    = {};
-    USE date(format = '%Y-%m-%d %H:%M:%S');  # add locale if you want
-    FOR r IN results.results;
-        record = {};
-        FOR f IN datatable.col_keys;
-            IF form.field(f).isa('Rose::HTML::Form::Field::DateTime');
-               IF ( r.$f.epoch.defined );
-                record.$f = date.format( r.$f.epoch );
-               ELSE;
-                record.$f = '';
-               END;
-            ELSIF form.field(f).isa('Rose::HTML::Form::Field::PopUpMenu');
-                # use the visible value in results rather than literal
-                record.$f = form.field(f).value_label(r.$f);
-            ELSE;
-                record.$f = r.$f;
-            END;
-        END;
-        records.push(record);
-    END;
-    
-    data.recordsReturned = records.size;
-    data.totalRecords    = results.count + 0;  # make sure it is treated as an int.
-    data.pageSize        = results.pager.entries_per_page;
-    data.page            = results.pager.current_page;
-    data.sort            = c.req.param('_sort');
-    data.dir             = c.req.param('_dir');
-    data.records         = records;
-    
-    data.as_json;
-%]
-      
-__menu__
-[%# dynamic menu. Algorithm based on the example in the badger book. %]
-[%
-    # YUI flyout menus
-    # menu object looks like:
-    # menu = {
-    #   items = [
-    #       { href = '/uri/some/where', txt = 'Some Where', class = 'active' },
-    #       { href = '/uri/some/else' , txt = 'Some Else',
-    #           items = [
-    #               { href = '/uri/some/else/1', txt = 'Some Else 1' },
-    #               { href = '/uri/some/else/2', txt = 'Some Else 2' }
-    #               ]
-    #       }
-    #   ],
-    #   id = 'navmenu'  # default - optional key
-    # }
-    # c.uri_for is run on every href, so plain uris are ok.
-    #
-    # NOTE that we INCLUDE in order to localize vars each time.
-    
-    SET top        = 1;
-%]
-
-<div id="[% menu.id || 'vert_menu' %]" class="yuimenubar yuimenubarnav">
- <div class="bd">
-  <ul class="first-of-type">
-  [% INCLUDE menu_items items = menu.items %]
-  </ul><!-- end [% menu.id || 'vert_menu' %] -->
- </div>
-</div>
-
-[% BLOCK menu_items %]
- [% FOR i = items %]
- <!-- start [% i.txt %] -->
- [% IF top %]
- <li class="yuimenubaritem first-of-type">
-  <a class="[% i.class %] yuimenubaritemlabel" href="[% i.href %]">[% i.txt %]</a>
- [% ELSE %]
- <li class="yuimenuitem">
-  <a class="[% i.class %] yuimenuitemlabel" href="[% c.uri_for(i.href) %]">[% i.txt %]</a>
- [% END %]
-  [% IF i.exists('items') %]
-   <div class="yuimenu">
-    <div class="bd">
-     <ul class="first-of-type">
-    [% INCLUDE menu_items
-        top = top ? 0 : 1
-        items = i.items
-        %]
-     </ul>
-    </div>
-   </div>
-  [% END %]
- </li>
- <!-- end [% i.txt %] -->
- [% END %]
-[% END %]
-
-
-__autocomplete__
-[%# ajax autocompletion field. The default has no JS implementation.
-# 'input' object should have following keys/methods:
-#
-#   id
-#   label (optional)
-#   name (optional - defaults to id. used as param name for query.)
-#   url
-#   csize (optional - defaults to 30)
-#   value (optional)
-%]
-[% input.label %]
-<input autocomplete="off" [% # do not let browser complete it for you %]
-       id="[% input.id %]" 
-       name="[% input.name || input.id %]" 
-       size="[% input.csize || '30' %]"
-       type="text" 
-       value="[% input.value %]" />
-<span class="auto_complete" id="[% input.id %]_auto_complete"></span>
-<script type="text/javascript">
-/* this is what scriptaculous/prototype require.
-    var [% input.id %]_autocompleter = new Ajax.Autocompleter(
-        '[% input.id %]', 
-        '[% input.id %]_auto_complete', 
-        '[% input.url %]', 
-        {
-         minChars: 1
-        });
-*/
-</script>
-
-
-__header__
-<html>
- <head>
-  <title>[% c.name || 'Rose::DBx::Garden::Catalyst Application' %]</title>
-            
-  <!-- YUI support -->
-  <!-- reset css -->
-  <link rel="stylesheet" type="text/css" 
-        href="http://yui.yahooapis.com/2.3.1/build/reset-fonts-grids/reset-fonts-grids.css">
-
-  <!-- Core + Skin CSS -->
-  <link rel="stylesheet" type="text/css" 
-        href="http://yui.yahooapis.com/2.3.1/build/assets/skins/sam/skin.css">
-
-  <!-- Rose Garden style -->
-  <link rel="stylesheet" type="text/css" media="all"
-        href="[% c.uri_for('/static') %]/rdgc/rdgc.css" />
-
-
-<!-- js -->
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/utilities/utilities.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/container/container-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/menu/menu-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/logger/logger-min.js"></script>
-  <script type="text/javascript" src="http://www.json.org/json.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/history/history-beta-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/datatable/datatable-beta-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/datasource/datasource-beta-min.js"></script>
-  
-  <script type="text/javascript">
-     // Initialize and render the menu when it is available in the DOM
-     YAHOO.util.Event.onContentReady("schema_menu", function () {
-     /*
-          Instantiate the menu.  The first argument passed to the
-          constructor is the id of the element in the DOM that
-          represents the menu; the second is an object literal
-          representing a set of configuration properties for
-          the menu.
-     */
-     var oMenu = new YAHOO.widget.MenuBar(
-                       "schema_menu",
-                       {
-                           autosubmenudisplay: true,
-                           hidedelay: 750,
-                           lazyload: true
-                       }
-                       );
-     /*
-          Call the "render" method with no arguments since the
-          markup for this menu already exists in the DOM.
-     */
-     oMenu.render();
-     });
-  </script>
-            
- </head>
- <body class="yui-skin-sam"><!-- YUI requires this class -->
- 
- [%
-    # default is to just load menu.yml files from disk each time
-    # but could also hardcode menu hash here (or ....).
-    SET schema_menu  = c.view('RDGC').read_yaml(c.path_to('root', 'rdgc', 'schema_menu.yml'));
-    PROCESS rdgc/menu.tt menu = schema_menu;
-  %]                                                                           
-
-__footer__
-
-[%# YUI logger %]
- [% IF c.config.yui_logger %]
- <div id="yuiLogger" style="padding-left:2em;font-size:150%"></div>
- <script type="text/javascript">
- var myLogReader = new YAHOO.widget.LogReader("yuiLogger");
- </script>
- [% END %]
-
- <div id="footer">
- Created via Rose::DBx::Garden::Catalyst
- </div>
- 
- </body>
-</html>
-
-__css__
-/* Rose::DBx::Garden::Catalyst default css */
-
-span.error, div.error
-{
-    font-size:95%;
-    color:red;
-    padding: 8px;
-}
-
-/* overall page layout */
-
-body 
-{
-    text-align:left;
-    font-size: 100%;
-}
-
-#main
-{
-    margin: 1em;
-}
-
-#results
-{
-    margin: 1em;
-}
-
-.center
-{
-    text-align: center;
-}
-
-#footer
-{
-    clear: both;
-    border-top: 1px solid #aaa;
-    text-align: center;
-    font-size: 90%;
-    color: #7A0019;
-}
-
-/* tableless forms courtesy of http://bajooter.com/node/22  */
-
-form.rdgc
-{
-    clear:both;
-    margin: 1em;
-}
-
-form.rdgc fieldset
-{
-    margin-top: 1em;
-    padding: 1em;
-    background-color: #eee;
-    border:1px solid #aaa;
-}
-
-
-form.rdgc legend 
-{
-    padding: 0.2em 0.5em;
-    background-color: #fff;
-    border:1px solid #aaa;
-    text-align:right;
-}
-
-form.rdgc label
-{
-    font-weight: bold;
-
-}
-
-form.rdgc div.wide input,
-form.rdgc div.wide span.input
-{
-    float: none;
-    clear:both;
-    margin: 4px 100px;
-    display: inline;
-}
-    
-form.rdgc label, 
-form.rdgc input,
-form.rdgc span.input
-{
-    display: block;
-    float: left;
-    margin-bottom: 5px;
-    margin-top:5px;
-}
-
-/* FF seems to like this, on mac anyway */
-form.rdgc input
-{
-    margin-top: -1px;
-}
-
-
-form.rdgc legend 
-{
-font-weight:bold;
-padding:5px;
-}
-
-form.rdgc select 
-{
-display: inline;
-float:left;
-margin-bottom: 5px;
-margin-top: 5px;					
-}
-
-
-/* fieldset.narrow has narrower label column */
-form.rdgc label
-{
-padding-right: 20px;				
-text-align: right;
-width: 170px;
-}
-
-form.rdgc fieldset.narrow label
-{
-padding-right: 20px;				
-text-align: right;
-width: 95px;
-}
-
-form.rdgc fieldset.wide label
-{
-padding-right: 20px;				
-text-align: right;
-width: 200px;
-}
-
-
-form.rdgc br {
-clear: left;
-}
-
-form.rdgc .submit 
-{
-display:inline;				
-float:none;						          
-margin-bottom:0px;
-
-/* ie 5.x hack - fixes margin bug 
-http://www.tantek.com/CSS/Examples/boxmodelhack.html*/
-margin-left:95px;						
-voice-family: "\"}\""; 
-voice-family: inherit;
-
-/* reset the margin back */
-margin-left:115px;
-margin-right:0px;
-margin-top:10px;											
-}
-
-form.rdgc fieldset.list {
-border:0;
-float:left;
-margin-bottom:3px;
-}
-
-/* in case someone adds a legend */
-form.rdgc fieldset.list legend {
-display:none;
-}
-
-form.rdgc fieldset.list label, 
-form.rdgc fieldset.list input {
-margin-bottom:2px;
-margin-top:2px;
-}
-
-form.rdgc fieldset.list label {
-margin-left: 5px;					
-text-align:left;
-}		
-
-
-form.rdgc fieldset.inline
-{
-    display:inline;
-    border:0;
-    float:left;
-    padding: 2px;
-    margin: 2px 2px 2px 0px;
-}
-form.rdgc fieldset.inline label, 
-form.rdgc fieldset.inline input {
-    margin: 2px;
-    padding: 2px;
-    display:inline;
-}
-
-form.rdgc fieldset.inline label {
-    margin: 2px 10px 2px 0px;
-    padding: 2px;				
-    text-align:left;
-    display:inline;
-    font-weight: normal;
-    width:auto;
-}
-
-form.rdgc .inline
-{
-    display: inline;
-    float:none;
-    margin: 0;
-    padding: 0;				
-}
-
-form.rdgc div.boolean_group,
-form.rdgc div.boolean_group input,
-form.rdgc div.boolean_group label
-{
-    clear:both;
-    float:none;
-    border:none;
-    width:auto;
-    display:inline;
-}
-
-form.rdgc div.boolean_group input,
-form.rdgc div.boolean_group label
-{
-    font-weight:normal;
-    padding-left: .5em;
-    padding-right: 1em;
-    margin: 0;
-}
-
-form.rdgc input[type=text],
-form.rdgc textarea
-{
-    font-family: Monaco, 'Andale Mono', fixed, monospace;
-    padding: 2px;
-}

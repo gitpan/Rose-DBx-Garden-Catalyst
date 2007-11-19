@@ -3,6 +3,7 @@ MANIFEST
 Makefile.PL
 README
 lib/Rose/DBx/Garden/Catalyst.pm
+lib/Rose/DBx/Garden/Catalyst/Templates.pm
 t/00-load.t
 t/boilerplate.t
 t/pod-coverage.t
