@@ -1,7 +1,7 @@
 package Rose::DBx::Garden::Catalyst::Templates;
 use strict;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
@@ -159,8 +159,14 @@ INSERT 'rdgc/add_row_panel.tt';
             
         # hidden fields
         ELSIF (field.isa('Rose::HTML::Form::Field::Hidden'));
-            field.xhtml;
-            
+            IF show_hidden_fields;
+                t = form.hidden_to_text_field(field);
+                t.xhtml_label;
+                t.xhtml;
+                "<br />\n";
+            ELSE;
+                field.xhtml;
+            END;
             
         # related fields
         ELSIF (     form.show_related_fields 
@@ -172,7 +178,7 @@ INSERT 'rdgc/add_row_panel.tt';
             field.xhtml;
             
             # show related record info
-            related = form.related_field( fname );
+            related       = form.related_field( fname );
             foreign_field = form.show_related_field_using( related.class, fname );
             foreign_key   = related.foreign_col;
             method        = related.method;
@@ -241,12 +247,22 @@ __edit__
    
   [%
     # if configured, also show links to relationships.
-    # This is like a pseudo-form, because there are no fields per se.
     IF (form.show_relationships);
     
+        PROCESS rdgc/show_relationships.tt;
+    
+    END;  # show_relationships
+  %]
+ 
+ </div>
+ 
+ [% PROCESS rdgc/footer.tt %]
+
+__show_relationships__
+[%
         FOREACH rel IN form.relationships;
         
-            NEXT IF rel.type == 'foreign key';
+            #NEXT IF rel.type == 'foreign key';
             info = form.relationship_info( rel );
             NEXT IF info.class == form.object_class;
             
@@ -256,16 +272,18 @@ __edit__
             
             # create a matrix for each relationship
             
-            %]
+         %]
             
+    [% IF buttons != 0 %]
     <div id="[% method %]List" class="add_matrix_row">
      <button class="addRowButton"
         onclick="YAHOO.rdgc.add_matrix_row([% method %]Matrix,YAHOO.rdgc.relatedMatrixInfo.[% method %])"
         >Create association from [% method %]</button>
     </div>
+    [% END %]
     <div id="[% method %]Id" class="related_object_matrix"></div>
-            
-            [%
+    
+         [%
             
             datatable           = {};
             datatable.columns   = [];
@@ -426,12 +444,7 @@ __edit__
   </script> 
   [%    
         END;  # FOREACH relationship
-    END;  # show_relationships
-  %]
- 
- </div>
- 
- [% PROCESS rdgc/footer.tt %]
+%]
 
 __add_row_panel__
 
@@ -491,7 +504,8 @@ __search__
    <fieldset>
     <legend>Search [% c.action.namespace %]</legend>
      
-     [% PROCESS rdgc/form.tt %]
+     [% PROCESS rdgc/form.tt 
+            show_hidden_fields=1 %]
     
     <label><!-- satisfy css --></label>
     <input class="button" type="submit" name="search" value="Search" />
@@ -501,8 +515,11 @@ __search__
  
  [% IF results.count %]
   [% PROCESS rdgc/results.tt %]
- [% ELSIF results.plain_query_str %]
-  <div>Sorry, no results for <strong>[% results.plain_query_str %]</strong>.</div>
+ [% ELSIF results.query.plain_query_str %]
+  <div>
+  Sorry, no results for 
+  <strong>[% results.query.plain_query_str %]</strong>.
+  </div> 
  [% END %]
  
  </div>
@@ -528,7 +545,7 @@ __list__
 __yui_datatable_setup__
 [% # set up some same defaults
 
-    SET controller              = c.controller(c.action.class);
+    SET controller              = c.controller(); # no arg == c.action.class
     DEFAULT datatable           = {};
     DEFAULT datatable.pk        = controller.config.primary_key;
     DEFAULT datatable.columns   = [];

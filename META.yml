@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Rose-DBx-Garden-Catalyst
-version:             0.03
+version:             0.04
 abstract:            plant Roses in your Catalyst garden
 license:             ~
 generated_by:        ExtUtils::MakeMaker version 6.36
@@ -14,7 +14,7 @@ requires:
     Data::Dump:                    0
     JSON::XS:                      0
     Path::Class:                   0
-    Rose::DBx::Garden:             0.04
+    Rose::DBx::Garden:             0.05
     Scalar::Util:                  0
     Template:                      0
     Test::More:                    0

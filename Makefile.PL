@@ -10,7 +10,7 @@ WriteMakefile(
     PL_FILES            => {},
     PREREQ_PM => {
         'Test::More' => 0,
-        'Rose::DBx::Garden' => 0.04,
+        'Rose::DBx::Garden' => 0.05,
         'Catalyst'          => 5.7,
         'YAML::Syck'        => 0,
         'JSON::XS'          => 0,

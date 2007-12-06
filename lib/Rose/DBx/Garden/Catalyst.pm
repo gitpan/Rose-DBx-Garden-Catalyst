@@ -16,7 +16,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
@@ -322,6 +322,19 @@ sub relationship_info {
     return \$info;     
 }
 
+sub hidden_to_text_field {
+    my \$self   = shift;
+    my \$hidden = shift or croak "need Hidden Field object";
+    unless( ref \$hidden && \$hidden->isa('Rose::HTML::Form::Field::Hidden')) {
+        croak "\$hidden is not a Rose::HTML::Form::Field::Hidden object";
+    }
+    my \@attr = (size => 12);
+    for my \$attr (qw( name label class required value )) {
+        push(\@attr, \$attr, \$hidden->\$attr);
+    }
+    return Rose::HTML::Form::Field::Text->new(\@attr);    
+}
+
 EOF
 }
 
@@ -518,9 +531,9 @@ sub _make_menu_items {
             $item{items}
                 = $self->_make_menu_item( $item{href}, $children->{$child} );
         }
-        elsif ( $child !~ m/^(Search|Create)$/ ) {
+        elsif ( $child !~ m/^(Search|Create|List)$/ ) {
             $item{items} = $self->_make_menu_items( $item{href},
-                { Search => {}, Create => {} } );
+                { Search => {}, Create => {}, List => {} } );
         }
         push( @items, \%item );
     }
@@ -924,6 +937,12 @@ Should be straightforward since the Garden nows puts column-type as xhtml class 
 =item RDGC tests
 
 Need a way to reliably test the JS.
+
+=item related column display
+
+Optionally show unique column from related tables via FKs when showing
+relationships. I.e., do not show the literal FK value but a unique value from
+the table which the FK references.
 
 =back
 

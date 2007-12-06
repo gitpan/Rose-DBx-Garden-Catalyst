@@ -19,5 +19,12 @@ Revision history for Rose-DBx-Garden-Catalyst
         * add Create/Search to menu
         * bumped req versions of CatalystX::CRUD::*
 
+0.04    6 Dec 2007
+        * split out show_relationships.tt into its own file
+        * show hidden fields by default when searching 
+          (to allow for searching by serial PKs, e.g.)
+        * fix bug when getting controller for current action.
+
+
 
 
