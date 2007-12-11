@@ -1,7 +1,7 @@
 package Rose::DBx::Garden::Catalyst::Templates;
 use strict;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 NAME
 
@@ -108,7 +108,7 @@ UNLESS fields.size;
     fields = { order = [], readonly = {} };
 END;
 UNLESS fields.order.size;
-    fields.order    = form.field_names;
+    fields.order    = form.field_names_by_rank;
 END;
 
 DEFAULT oid = object.primary_key_uri_escaped;

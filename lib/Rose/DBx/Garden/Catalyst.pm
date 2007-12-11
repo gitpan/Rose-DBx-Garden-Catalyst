@@ -16,7 +16,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 NAME
 
@@ -353,6 +353,22 @@ sub hidden_to_text_field {
     return Rose::HTML::Form::Field::Text->new(\@attr);    
 }
 
+=head2 field_names_by_rank
+
+Returns array ref of field names sorted numerically by their rank attribute.
+The rank is set in Rose::DBx::Garden according to the ordinal position
+of the corresponding db column.
+
+=cut
+
+sub field_names_by_rank {
+    my \$self = shift;
+    my \@new  = map  { \$_->name }
+                sort { \$a->rank <=> \$b->rank }
+                \$self->fields;
+    return [ \@new ];
+}
+
 EOF
 }
 
@@ -597,7 +613,6 @@ sub _tt_stub_edit {
     return <<EOF;
 [% 
     fields      = {};
-    fields.order    = form.field_names;
     fields.readonly = {'created' = 1, 'modified' = 1}; # common auto-timestamp names
     PROCESS rdgc/edit.tt;
 %]
@@ -608,9 +623,8 @@ sub _tt_stub_view {
     return <<EOF;
 [% 
     fields      = {};
-    fields.order    = form.field_names;
     fields.readonly = {};
-    FOREACH f IN fields.order;
+    FOREACH f IN form.field_names;
         fields.readonly.\$f = 1;
     END;
     PROCESS rdgc/edit.tt  buttons = 0;

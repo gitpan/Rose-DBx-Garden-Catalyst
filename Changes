@@ -29,6 +29,11 @@ Revision history for Rose-DBx-Garden-Catalyst
         * added show_related_values() method to base Form and refactored
           .tt yui_datatable code to use it.
 
+0.06    11 Dec 2007
+        * changed default field sort order to sort by rank (tabindex) to match
+          the order set in RDG.
+
+
 
 
 
