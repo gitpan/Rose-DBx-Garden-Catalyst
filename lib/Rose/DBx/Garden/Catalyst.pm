@@ -16,7 +16,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -159,6 +159,18 @@ Default is true.
 
 sub show_related_fields { 1 }
 
+=head2 show_related_values
+
+Boolean indicating whether the YUI datatable matrix should
+show related unique field values rather than the foreign keys
+to which they refer.
+
+Default is true.
+
+=cut
+
+sub show_related_values { 1 }
+
 =head2 show_relationships
 
 Boolean indicating whether the View should provide links to related
@@ -214,13 +226,13 @@ object as:
 where the id of the 'person' object is a related (foreign key) to the person_id
 value of the user object. In a form display for the 'user', you might want to display the name
 of the 'person' rather than the id, so show_related_field_using() will look
-up the first unique field (or fields) in the I<foreign_object_class> (in this case,
-the 'person' class) and return that field.
+up the first unique text field in the I<foreign_object_class> 
+(in this case, the 'person' class) and return that field.
 
  my \$field = \$form->show_related_field_using( 'RDBO::Person', 'person_id' )
  
 And because it's a method, you can override show_related_field_using() to perform
-different logic than simply looking up the first unique key in the I<foreign_object_class>.
+different logic than simply looking up the first unique text key in the I<foreign_object_class>.
 
 If no matching field is found, returns undef.
 
@@ -234,7 +246,8 @@ sub show_related_field_using {
     my \@ukeys = \$fclass->meta->unique_keys_column_names;
     if (\@ukeys) {
         for my \$k (\@ukeys) {
-            if (scalar(\@\$k) == 1) {
+            if (   scalar(\@\$k) == 1 
+                && \$fclass->meta->column(\$k->[0])->type =~ m/char/) {
                 return \$k->[0];
             }
         }
@@ -255,6 +268,7 @@ If I<field_name> does not represent a related class, returns undef.
 sub related_field {
     my \$self         = shift;
     my \$field_name   = shift or croak "field_name required";
+    my \$c            = shift || \$self->app;
     
     # interrogate related classes
     for my \$rel ( \@{ \$self->relationships } ) {
@@ -270,7 +284,7 @@ sub related_field {
             warn "\$field_name is ManyToMany\\n";
         }
 
-        return \$self->relationship_info( \$rel, \\\%info );
+        return \$self->relationship_info( \$rel, \\\%info, \$c );
     }
     
     return undef;
@@ -287,6 +301,11 @@ sub relationship_info {
     my \$self = shift;
     my \$rel  = shift or croak "relationship object required";
     my \$info = shift || {};
+    my \$c    = shift || \$self->app;
+    unless(\$c) {
+        Carp::confess;
+        croak "no Catalyst context object in form->app";  # Catalyst context object
+    }
     
     \$info->{type}      = \$rel->type;
     \$info->{method}    = \$rel->name;
@@ -311,7 +330,6 @@ sub relationship_info {
     }
     
     # create URL
-    my \$c                  = \$self->app;  # Catalyst context object
     my \$prefix             = \$self->garden_prefix;
     my \$controller_name    = \$info->{class};
     \$controller_name       =~ s/^\${prefix}:://;

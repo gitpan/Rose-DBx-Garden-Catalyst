@@ -25,6 +25,10 @@ Revision history for Rose-DBx-Garden-Catalyst
           (to allow for searching by serial PKs, e.g.)
         * fix bug when getting controller for current action.
 
+0.05    11 Dec 2007
+        * added show_related_values() method to base Form and refactored
+          .tt yui_datatable code to use it.
+
 
 
 

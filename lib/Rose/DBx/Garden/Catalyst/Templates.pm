@@ -1,7 +1,7 @@
 package Rose::DBx::Garden::Catalyst::Templates;
 use strict;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -290,6 +290,7 @@ __show_relationships__
             datatable.pk        = info.controller.config.primary_key;
             datatable.data      = [];
             datatable.col_keys  = [];
+            datatable.show_related_values = {};
             
             FOREACH f IN info.controller.yui_datatable_field_names;
                 datatable.columns.push(
@@ -301,9 +302,20 @@ __show_relationships__
             END;
                         
             FOREACH col IN datatable.columns;
-                datatable.col_keys.push( col.key );
+                f = col.key;
+                datatable.col_keys.push( f );
+                myform = info.controller.form;
+                related = myform.related_field(f, c);
+                NEXT UNLESS related;
+                IF (f == datatable.pk);
+                 NEXT;
+                END;
+                h = {foreign_field = '', method = ''};
+                h.foreign_field = myform.show_related_field_using( related.class, f );
+                h.method        = related.method;
+                datatable.show_related_values.$f = h;
             END;
-
+            
             FOREACH r IN object.$method;
                 IF info.map_class;
                     record = {'_remove' = ' X '};  # 'remove' button
@@ -317,6 +329,19 @@ __show_relationships__
                         ELSE;
                             record.$f = '';
                         END;
+                    
+                    ELSIF (     datatable.show_related_values.exists(f)
+                            &&  info.controller.form.show_related_values
+                          );
+                      
+                        IF (datatable.show_related_values.$f.foreign_field);
+                            m  = datatable.show_related_values.$f.method;
+                            ff = datatable.show_related_values.$f.foreign_field;
+                            record.$f = r.$m.$ff;
+                        ELSE;
+                            record.$f = r.$f;
+                        END;
+
                     ELSE;
                         record.$f = r.$f;
                     END;
@@ -573,6 +598,20 @@ __yui_datatable_setup__
         datatable.col_keys.push( col.key );
     END;
     
+    datatable.show_related_values = {};
+    FOREACH f IN datatable.col_keys;
+        related  = form.related_field( f, c );
+        NEXT UNLESS related;
+        IF (f == datatable.pk);
+            NEXT;
+        END;
+        SET h = {foreign_field = '', method = ''};
+        h.foreign_field = form.show_related_field_using( related.class, f );
+        h.method        = related.method;
+        datatable.show_related_values.$f = h;
+    END;
+
+    
 %]
 
 __yui_datatable_js__
@@ -669,18 +708,32 @@ __yui_datatable__
     PROCESS rdgc/yui_datatable_setup.tt;
     records = [];
     data    = {};
+            
     FOR r IN results.results;
         record = {};
         FOR f IN datatable.col_keys;
+            
             IF form.field(f).isa('Rose::HTML::Form::Field::DateTime');
                IF ( r.$f.epoch.defined );
                 record.$f = date.format( r.$f.epoch );
                ELSE;
                 record.$f = '';
                END;
+               
             ELSIF form.field(f).isa('Rose::HTML::Form::Field::PopUpMenu');
                 # use the visible value in results rather than literal
                 record.$f = form.field(f).value_label(r.$f);
+            
+            ELSIF (     datatable.show_related_values.exists(f)
+                    &&  form.show_related_values
+                  );
+                      
+                IF (datatable.show_related_values.$f.foreign_field);
+                    m  = datatable.show_related_values.$f.method;
+                    ff = datatable.show_related_values.$f.foreign_field;
+                    record.$f = r.$m.$ff;
+                END;
+                
             ELSE;
                 record.$f = r.$f;
             END;
