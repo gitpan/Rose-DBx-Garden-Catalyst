@@ -13,7 +13,7 @@ WriteMakefile(
         'Rose::DBx::Garden' => 0.05,
         'Catalyst'          => 5.7,
         'YAML::Syck'        => 0,
-        'JSON::XS'          => 0,
+        'JSON'              => 2.00,
         'Data::Dump'        => 0,
         'Tree::Simple'      => 0,
         'Tree::Simple::Visitor::ToNestedHash' => 0,

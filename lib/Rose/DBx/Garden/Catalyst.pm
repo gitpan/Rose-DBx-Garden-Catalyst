@@ -16,7 +16,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 NAME
 
@@ -822,10 +822,13 @@ sub precommit {
     my (\$self, \$c, \$obj) = \@_;
     
     # make empty ints NULL
+    # this is a RHTMLO bug supposedly fixed as of 0.552
+    # but it doesn't hurt to double-check
     for my \$col (\$obj->meta->columns) {
         my \$name = \$col->name;
         if (\$col->type =~ m/int/) {
             if (defined \$obj->\$name && !length(\$obj->\$name)) {
+                \$c->log->warn("precommit: \$name fixed to undef instead of empty string");
                 \$obj->\$name(undef);
             }
         }
@@ -900,7 +903,7 @@ use strict;
 use warnings;
 use base qw( Catalyst::View::TT );
 use Carp;
-use JSON::XS ();
+use JSON 2.00 ();
 use YAML::Syck ();
 use Data::Dump qw( dump );
 
@@ -930,7 +933,7 @@ sub read_yaml {
 
 sub as_json {
     my \$v = shift;
-    my \$j = JSON::XS::to_json(\$v);
+    my \$j = JSON::encode_json(\$v);
     return \$j;
 }
 

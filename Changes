@@ -33,6 +33,12 @@ Revision history for Rose-DBx-Garden-Catalyst
         * changed default field sort order to sort by rank (tabindex) to match
           the order set in RDG.
 
+0.07    21 Dec 2007
+        * added comment to precommit() to catch non-NULL empty ints. This feature
+          should be unnecessary as of RHTMLO 0.552 so send warn() to $c->log now
+          to indicate if it was not caught at RHTMLO level.
+        * switch to top-level JSON 2.00 API.
+
 
 
 
