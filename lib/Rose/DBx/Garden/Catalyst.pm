@@ -16,7 +16,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 NAME
 
@@ -99,7 +99,8 @@ sub primary_key_uri_escaped {
     my \$pk =
         join( ';',
             map { 
-                  my \$v = \$self->\$_; 
+                  my \$v = \$self->\$_;
+                  \$v = '' unless defined \$v;
                   \$v =~ s/;/ sprintf( "%%%02X", ';' ) /eg;
                   \$v; 
                 }
@@ -303,8 +304,7 @@ sub relationship_info {
     my \$info = shift || {};
     my \$c    = shift || \$self->app;
     unless(\$c) {
-        Carp::confess;
-        croak "no Catalyst context object in form->app";  # Catalyst context object
+        Carp::confess("no Catalyst context object in form->app");
     }
     
     \$info->{type}      = \$rel->type;
@@ -347,7 +347,7 @@ sub hidden_to_text_field {
         croak "\$hidden is not a Rose::HTML::Form::Field::Hidden object";
     }
     my \@attr = (size => 12);
-    for my \$attr (qw( name label class required value )) {
+    for my \$attr (qw( name label class required )) {
         push(\@attr, \$attr, \$hidden->\$attr);
     }
     return Rose::HTML::Form::Field::Text->new(\@attr);    
@@ -912,6 +912,16 @@ __PACKAGE__->config(
     PRE_PROCESS         => 'rdgc/tt_config.tt',
     );
 
+my \$JSON = JSON->new->utf8;
+\$JSON->convert_blessed(1);
+\$JSON->allow_blessed(1);
+
+# mysql serial fields are rendered with Math::BigInt objects in RDBO
+sub Math::BigInt::TO_JSON {
+    my (\$self) = \@_;
+    return \$self . '';
+}
+
 # virt method replacements for Dumper plugin
 sub dump_data {
     my \$s = shift;
@@ -919,7 +929,7 @@ sub dump_data {
     \$d =~ s/&/&amp;/g;
     \$d =~ s/</&lt;/g;
     \$d =~ s/>/&gt;/g;
-    \$d =~ s,\n,<br/>\n,g;
+    \$d =~ s,\\n,<br/>\\n,g;
     return "<pre>\$d</pre>";
 }
 
@@ -933,7 +943,7 @@ sub read_yaml {
 
 sub as_json {
     my \$v = shift;
-    my \$j = JSON::encode_json(\$v);
+    my \$j = \$JSON->encode(\$v);
     return \$j;
 }
 
@@ -951,6 +961,16 @@ sub false { JSON::XS::false }
 \$Template::Stash::LIST_OPS->{as_json}   = \\&as_json;
 \$Template::Stash::SCALAR_OPS->{as_json} = \\&as_json;
 
+my \$DateTime_Format  = '\%Y-\%m-\%d \%H:\%M:\%S';
+
+{
+    # nasty hack really. there ought to be a class method to set the default
+    # DateTime stringification output. instead, we cheat in an Evil Way.
+    # http://www.mail-archive.com/rose-db-object\@lists.sourceforge.net/msg01295.html
+    use DateTime;
+    no warnings 'redefine';
+    sub DateTime::_stringify { shift->strftime(\$DateTime_Format) }
+}
 
 1;
 

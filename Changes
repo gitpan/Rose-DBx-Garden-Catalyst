@@ -39,7 +39,21 @@ Revision history for Rose-DBx-Garden-Catalyst
           to indicate if it was not caught at RHTMLO level.
         * switch to top-level JSON 2.00 API.
 
-
-
-
+0.08    01 Feb 2008
+        * make yui detail link toggle based on can_write() method of target controller.
+          (This might not work for relationship controllers...)
+        * fix confess/croak error in generated form class
+        * fix spurious warnings in generated primary_key method
+        * add YUI_VERSION var in header.tt to allow for easy upgrade
+        * add REST support via _http_method JS toggle
+        * fix bug in /count js with unquoted var.
+        * fix (unstick) sticky hidden field values in hidden_to_text_field()
+        * change Makefile.PL to require both JSON and JSON::XS
+        * fix dump_data() in template wrt escaping \n
+        * refactor the form.tt code to show related FK links even when in readonly mode
+        * tweek the show_relationships.tt code to not skip FKs but do not show them for PKs
+        * refactor JSON stuff in View::RDGC to handle blessed objects, particularly mysql serial columns
+        * fix bug with checkbox rendering in form.tt
+        * change all DateTime stringification to use Evil sub redefine in View rather than TT Date plugin
+        * add Boolean field support to readonly feature in form.tt
 

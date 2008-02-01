@@ -1,7 +1,7 @@
 package Rose::DBx::Garden::Catalyst::Templates;
 use strict;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 NAME
 
@@ -77,7 +77,6 @@ __DATA__
 
 __tt_config__
 [% # global vars, settings, etc.
-    USE date(format = '%Y-%m-%d %H:%M:%S');  # add locale if you want
 
 %]
 
@@ -136,8 +135,8 @@ INSERT 'rdgc/add_row_panel.tt';
 
         # checkboxes
         ELSIF (field.can('xhtml_checkbox'));
-            form.field(f).xhtml_label;
-            form.field(f).xhtml_checkbox;
+            field.xhtml_label;
+            field.xhtml_checkbox;
             "<br />\n";
 
         # read-only fields
@@ -148,12 +147,15 @@ INSERT 'rdgc/add_row_panel.tt';
             IF field.isa('Rose::HTML::Form::Field::TextArea');
                 "<pre>"; field.output_value; "</pre>";
             ELSIF field.isa('Rose::HTML::Form::Field::DateTime');
-              IF (field.internal_value.epoch.defined);
-                date.format( field.internal_value.epoch );
-              END;
+                field.output_value _ '';
+            ELSIF field.isa('Rose::HTMLx::Form::Field::Boolean');
+                field.output_value == '1' ? 'true' : 'false';
             ELSE;
                 field.output_value;
             END;
+            
+            PROCESS related_field_info;
+            
             "</span>";
             "<br />\n";
             
@@ -167,46 +169,45 @@ INSERT 'rdgc/add_row_panel.tt';
             ELSE;
                 field.xhtml;
             END;
-            
-        # related fields
-        ELSIF (     form.show_related_fields 
-                &&  field.internal_value.length
-                &&  form.related_field( fname ) );
-
-            # show raw field
-            field.xhtml_label;
-            field.xhtml;
-            
-            # show related record info
-            related       = form.related_field( fname );
-            foreign_field = form.show_related_field_using( related.class, fname );
-            foreign_key   = related.foreign_col;
-            method        = related.method;
-            USE myurl     = url( related.url _ '/search', 
-                                  { $foreign_key = field.internal_value });
-
-            IF (foreign_field);
-                # show related record value literally
-                myval = object.$method.$foreign_field;
-                "&nbsp;<a href='$myurl'>$myval</a>";
-            ELSE;
-                # show link to related record
-                "&nbsp;<a href='$myurl'>Related record</a>";
-            END;
-            
-            "<br />\n";
-                             
+                                         
         # default
         ELSE;
                         
             field.xhtml_label;
             field.xhtml;
+            PROCESS related_field_info;
             "<br />\n";
             
         END;    # IF/ELSE        
     END;  # FOREACH
         
 %]
+
+[% BLOCK related_field_info %]
+[%
+ IF (     form.show_related_fields 
+      &&  field.internal_value.length
+      &&  form.related_field( fname ) 
+      &&  fname != c.controller.primary_key );
+  related       = form.related_field( fname );
+  foreign_field = form.show_related_field_using( related.class, fname );
+  foreign_key   = related.foreign_col;
+  method        = related.method;
+  USE myurl     = url( related.url _ '/search', 
+                         { $foreign_key = field.internal_value });
+
+  IF (foreign_field);
+    # show related record value literally
+    myval = object.$method.$foreign_field;
+    "&nbsp;<a href='$myurl'>$myval</a>";
+  ELSE;
+     # show link to related record
+    "&nbsp;<a href='$myurl'>Related record</a>";
+  END;
+  
+ END;
+%]
+[% END %]
 
 __edit__
 [%# generic edit screen for forms %]
@@ -216,9 +217,21 @@ __edit__
  
  <div id="main">
  
+ <script type="text/javascript">
+  var http_method = '[% oid ? 'PUT' : 'POST' %]';
+  function set_http_method (form) {
+    var el = new YAHOO.util.Element('_http_method');
+    el.set('value', http_method);
+    //alert("_http_method = " + el.get('value'));
+    return true;
+  }
+ </script>
+ 
  <form method="post" 
        action="[% c.uri_for(oid, 'save') %]"
        class="rdgc"
+       name="rdgc_form"
+       onsubmit="return set_http_method(this)"
        >
   <fieldset>
    [% IF !buttons.defined || buttons != 0 %]
@@ -234,11 +247,14 @@ __edit__
     
     [% UNLESS buttons == 0 %]
     <label><!-- satisfy css --></label>
-    <input class="button" type="submit" name="save" value="Save" />
+    [% # REST support %]
+    <input id="_http_method" type="hidden" name="_http_method" 
+           value="[% oid ? 'PUT' : 'POST' %]" />
+    <input class="button" type="submit" name="_save" value="Save" />
     <input class="button" type="reset" value="Reset" />
     [% IF object_id && !no_delete %]
         <input class="button" type="submit" name="_delete" value="Delete"
-            onclick="return confirm('Really delete?')" />
+          onclick="if (confirm('Really delete?')) { http_method = 'DELETE'; return true; } else { return false }" />
     [% END %]
     [% END %]
     
@@ -262,7 +278,7 @@ __show_relationships__
 [%
         FOREACH rel IN form.relationships;
         
-            #NEXT IF rel.type == 'foreign key';
+            NEXT IF rel.type == 'foreign key';
             info = form.relationship_info( rel );
             NEXT IF info.class == form.object_class;
             
@@ -325,7 +341,7 @@ __show_relationships__
                 FOREACH f IN datatable.col_keys;
                     IF r.$f.isa('DateTime');
                         IF ( r.$f.epoch.defined );
-                            record.$f = date.format( r.$f.epoch );
+                            record.$f = r.$f  _ '';
                         ELSE;
                             record.$f = '';
                         END;
@@ -435,7 +451,7 @@ __show_relationships__
             }
             // redirect to edit screen
             else {
-                var newurl      = '[% info.url %]/' + pk + '/edit';
+                var newurl      = '[% info.url %]/' + pk + '/' + '[% info.controller.can_write(c) ? 'edit' : 'view' %]';
                 window.location.href = newurl;
             }
         };
@@ -450,7 +466,7 @@ __show_relationships__
             var record      = oDataTable.getRecord(target);
             var column      = oDataTable.getColumn(vtarget);
             var pk          = record.getData(YAHOO.rdgc.relatedMatrixInfo.[% method %].pk);            
-            var newurl      = '[% info.url %]/' + pk + '/edit';
+            var newurl      = '[% info.url %]/' + pk + '/' + '[% info.controller.can_write(c) ? 'edit' : 'view' %]';
             window.location.href = newurl;   
         };
         [% END %]
@@ -506,7 +522,7 @@ __jsonify__
     FOREACH col IN object.meta.column_names;
         val = object.$col;
         IF val.isa('DateTime');
-            data.$col = date.format( val.epoch );
+            data.$col = val  _ '';
         ELSE;
             data.$col = val;
         END;
@@ -559,8 +575,13 @@ __list__
   <div id="main"> 
  [% IF results.count %]
   [% PROCESS rdgc/results.tt %]
- [% ELSIF results.plain_query_str %]
-  <div>Sorry, no results for <strong>[% results.plain_query_str %]</strong>.</div>
+ [% ELSIF results.query.plain_query_str %]
+  <div>
+  Sorry, no results for 
+  <strong>[% results.query.plain_query_str %]</strong>.
+  </div>
+ [% ELSE %]
+  <div>Sorry, no results.</div>
  [% END %]
  </div>
  
@@ -641,7 +662,7 @@ __yui_datatable_js__
                 var target      = oArgs.target;
                 var record      = oDataTable.getRecord(target);
                 var pk          = record.getData("[% datatable.pk %]");
-                var newurl      = '[% c.uri_for('') %]/' + pk + '/edit';
+                var newurl      = '[% c.uri_for('') %]/' + pk + '/' + '[% c.controller.can_write(c) ? 'edit' : 'view' %]';
                 window.location.href = newurl;
             };
     var matrixOpts[% datatable.counter %] = {
@@ -715,7 +736,7 @@ __yui_datatable__
             
             IF form.field(f).isa('Rose::HTML::Form::Field::DateTime');
                IF ( r.$f.epoch.defined );
-                record.$f = date.format( r.$f.epoch );
+                record.$f = r.$f  _ '';
                ELSE;
                 record.$f = '';
                END;
@@ -856,16 +877,18 @@ __header__
  <head>
   <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
   
-  <title>[% c.name || 'Rose::DBx::Garden::Catalyst Application' %]</title>
+  <title>[% c.config.name || 'Rose::DBx::Garden::Catalyst Application' %]</title>
+  
+  [% YUI_VERSION = '2.3.1' %]
             
   <!-- YUI support -->
   <!-- reset css -->
   <link rel="stylesheet" type="text/css" 
-        href="http://yui.yahooapis.com/2.3.1/build/reset-fonts-grids/reset-fonts-grids.css" />
+        href="http://yui.yahooapis.com/[% YUI_VERSION %]/build/reset-fonts-grids/reset-fonts-grids.css" />
 
   <!-- Core + Skin CSS -->
   <link rel="stylesheet" type="text/css" 
-        href="http://yui.yahooapis.com/2.3.1/build/assets/skins/sam/skin.css" />
+        href="http://yui.yahooapis.com/[% YUI_VERSION %]/build/assets/skins/sam/skin.css" />
 
   <!-- Rose Garden style -->
   <link rel="stylesheet" type="text/css" media="all"
@@ -873,13 +896,14 @@ __header__
 
 
 <!-- js -->
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/utilities/utilities.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/container/container-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/menu/menu-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/logger/logger-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/history/history-beta-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/datatable/datatable-beta-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/datasource/datasource-beta-min.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/utilities/utilities.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/container/container-min.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/menu/menu-min.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/logger/logger-min.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/history/history-beta-min.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/datatable/datatable-beta-min.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/datasource/datasource-beta-min.js"></script>
+  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/element/element-beta-min.js"></script>
   <script type="text/javascript" src="[% c.uri_for('/static') %]/rdgc/rdgc.js"></script>
   <script type="text/javascript" src="[% c.uri_for('/static') %]/rdgc/json.js"></script>
   
