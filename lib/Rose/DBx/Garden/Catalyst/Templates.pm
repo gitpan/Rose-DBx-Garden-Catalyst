@@ -1,11 +1,11 @@
 package Rose::DBx::Garden::Catalyst::Templates;
 use strict;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09_01';
 
 =head1 NAME
 
-Rose::DBx::Garden::Catalyst::Templates - TT, HTML, JS and CSS templates
+Rose::DBx::Garden::Catalyst::Templates - JS and CSS templates
 
 =head1 DESCRIPTION
 
@@ -59,7 +59,7 @@ sponsored the development of this software.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2007 by the Regents of the University of Minnesota.
+Copyright 2008 by the Regents of the University of Minnesota.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
@@ -70,952 +70,140 @@ under the same terms as Perl itself.
 1;
 
 #
-# non-Perl Template::Toolkit snippets, JS and CSS
+# non-Perl JS and CSS
 #
 
 __DATA__
-
-__tt_config__
-[% # global vars, settings, etc.
-
-%]
-
-__default__
-[%# home page %]
-
- [% PROCESS rdgc/header.tt %]
- 
- <div id="main">
- 
- Welcome to the Rose Garden.
- 
- </div>
- 
- [% PROCESS rdgc/footer.tt %]
-
-__form__
-[%# generic RHTMLO form generator. %]
-[%
-# specific a specific field order with the 'fields.order' array.
-# the 'readonly' for values that should not be edited
-# but should be displayed (as with creation timestamps, etc)
-#
-# TODO some default JS validation would be nice here.
-
-# DEFAULT didn't work as expected here.
-UNLESS fields.size;
-    fields = { order = [], readonly = {} };
-END;
-UNLESS fields.order.size;
-    fields.order    = form.field_names_by_rank;
-END;
-
-DEFAULT oid = object.primary_key_uri_escaped;
-
-INSERT 'rdgc/add_row_panel.tt';
-
-%]
-
-[%  FOREACH fname = fields.order;
-
-        field = form.field( fname );
-    
-        # autocomplete magic
-        IF (field.can('autocomplete'));
-            u = field.url;
-            USE url = url( c.uri_for( u.0 ), u.1 );
-            PROCESS rdgc/autocomplete.tt
-                input = {
-                    label = field.xhtml_label
-                    url   = url
-                    id    = f
-                    value = field.input_value
-                };
-            "<br />\n";
-
-        # checkboxes
-        ELSIF (field.can('xhtml_checkbox'));
-            field.xhtml_label;
-            field.xhtml_checkbox;
-            "<br />\n";
-
-        # read-only fields
-        ELSIF (fields.readonly.exists( fname ));
-            field.xhtml_label;
-
-            "<span class='input'>";
-            IF field.isa('Rose::HTML::Form::Field::TextArea');
-                "<pre>"; field.output_value; "</pre>";
-            ELSIF field.isa('Rose::HTML::Form::Field::DateTime');
-                field.output_value _ '';
-            ELSIF field.isa('Rose::HTMLx::Form::Field::Boolean');
-                field.output_value == '1' ? 'true' : 'false';
-            ELSE;
-                field.output_value;
-            END;
-            
-            PROCESS related_field_info;
-            
-            "</span>";
-            "<br />\n";
-            
-        # hidden fields
-        ELSIF (field.isa('Rose::HTML::Form::Field::Hidden'));
-            IF show_hidden_fields;
-                t = form.hidden_to_text_field(field);
-                t.xhtml_label;
-                t.xhtml;
-                "<br />\n";
-            ELSE;
-                field.xhtml;
-            END;
-                                         
-        # default
-        ELSE;
-                        
-            field.xhtml_label;
-            field.xhtml;
-            PROCESS related_field_info;
-            "<br />\n";
-            
-        END;    # IF/ELSE        
-    END;  # FOREACH
-        
-%]
-
-[% BLOCK related_field_info %]
-[%
- IF (     form.show_related_fields 
-      &&  field.internal_value.length
-      &&  form.related_field( fname ) 
-      &&  fname != c.controller.primary_key );
-  related       = form.related_field( fname );
-  foreign_field = form.show_related_field_using( related.class, fname );
-  foreign_key   = related.foreign_col;
-  method        = related.method;
-  USE myurl     = url( related.url _ '/search', 
-                         { $foreign_key = field.internal_value });
-
-  IF (foreign_field);
-    # show related record value literally
-    myval = object.$method.$foreign_field;
-    "&nbsp;<a href='$myurl'>$myval</a>";
-  ELSE;
-     # show link to related record
-    "&nbsp;<a href='$myurl'>Related record</a>";
-  END;
-  
- END;
-%]
-[% END %]
-
-__edit__
-[%# generic edit screen for forms %]
-
- [% PROCESS rdgc/header.tt %]
- [% oid = object.primary_key_uri_escaped || 0 %]
- 
- <div id="main">
- 
- <script type="text/javascript">
-  var http_method = '[% oid ? 'PUT' : 'POST' %]';
-  function set_http_method (form) {
-    var el = new YAHOO.util.Element('_http_method');
-    el.set('value', http_method);
-    //alert("_http_method = " + el.get('value'));
-    return true;
-  }
- </script>
- 
- <form method="post" 
-       action="[% c.uri_for(oid, 'save') %]"
-       class="rdgc"
-       name="rdgc_form"
-       onsubmit="return set_http_method(this)"
-       >
-  <fieldset>
-   [% IF !buttons.defined || buttons != 0 %]
-   <legend>Edit [% c.action.namespace %] [% object_id %]</legend>
-   [% ELSE %]
-   <legend>
-    <a href="[% c.uri_for('/' _ c.action.namespace, oid, 'edit' ) %]"
-      >Edit [% c.action.namespace %] [% object_id %]</a>
-   </legend>
-   [% END %]
-    
-    [% PROCESS rdgc/form.tt %]
-    
-    [% UNLESS buttons == 0 %]
-    <label><!-- satisfy css --></label>
-    [% # REST support %]
-    <input id="_http_method" type="hidden" name="_http_method" 
-           value="[% oid ? 'PUT' : 'POST' %]" />
-    <input class="button" type="submit" name="_save" value="Save" />
-    <input class="button" type="reset" value="Reset" />
-    [% IF object_id && !no_delete %]
-        <input class="button" type="submit" name="_delete" value="Delete"
-          onclick="if (confirm('Really delete?')) { http_method = 'DELETE'; return true; } else { return false }" />
-    [% END %]
-    [% END %]
-    
-  </fieldset>
- </form>
-   
-  [%
-    # if configured, also show links to relationships.
-    IF (form.show_relationships);
-    
-        PROCESS rdgc/show_relationships.tt;
-    
-    END;  # show_relationships
-  %]
- 
- </div>
- 
- [% PROCESS rdgc/footer.tt %]
-
-__show_relationships__
-[%
-        FOREACH rel IN form.relationships;
-        
-            NEXT IF rel.type == 'foreign key';
-            info = form.relationship_info( rel );
-            NEXT IF info.class == form.object_class;
-            
-            #info.dump_data;
-            
-            method = info.method;
-            
-            # create a matrix for each relationship
-            
-         %]
-            
-    [% IF buttons != 0 %]
-    <div id="[% method %]List" class="add_matrix_row">
-     <button class="addRowButton"
-        onclick="YAHOO.rdgc.add_matrix_row([% method %]Matrix,YAHOO.rdgc.relatedMatrixInfo.[% method %])"
-        >Create association from [% method %]</button>
-    </div>
-    [% END %]
-    <div id="[% method %]Id" class="related_object_matrix"></div>
-    
-         [%
-            
-            datatable           = {};
-            datatable.columns   = [];
-            datatable.pk        = info.controller.config.primary_key;
-            datatable.data      = [];
-            datatable.col_keys  = [];
-            datatable.show_related_values = {};
-            
-            FOREACH f IN info.controller.yui_datatable_field_names;
-                datatable.columns.push(
-                    {
-                        key = f, 
-                        label = info.controller.form.field(f).label.localized_text, 
-                        sortable = c.view('RDGC').true
-                     });
-            END;
-                        
-            FOREACH col IN datatable.columns;
-                f = col.key;
-                datatable.col_keys.push( f );
-                myform = info.controller.form;
-                related = myform.related_field(f, c);
-                NEXT UNLESS related;
-                IF (f == datatable.pk);
-                 NEXT;
-                END;
-                h = {foreign_field = '', method = ''};
-                h.foreign_field = myform.show_related_field_using( related.class, f );
-                h.method        = related.method;
-                datatable.show_related_values.$f = h;
-            END;
-            
-            FOREACH r IN object.$method;
-                IF info.map_class;
-                    record = {'_remove' = ' X '};  # 'remove' button
-                ELSE;
-                    record = {};
-                END;
-                FOREACH f IN datatable.col_keys;
-                    IF r.$f.isa('DateTime');
-                        IF ( r.$f.epoch.defined );
-                            record.$f = r.$f  _ '';
-                        ELSE;
-                            record.$f = '';
-                        END;
-                    
-                    ELSIF (     datatable.show_related_values.exists(f)
-                            &&  info.controller.form.show_related_values
-                          );
-                      
-                        IF (datatable.show_related_values.$f.foreign_field);
-                            m  = datatable.show_related_values.$f.method;
-                            ff = datatable.show_related_values.$f.foreign_field;
-                            record.$f = r.$m.$ff;
-                        ELSE;
-                            record.$f = r.$f;
-                        END;
-
-                    ELSE;
-                        record.$f = r.$f;
-                    END;
-                END;
-                datatable.data.push(record);
-            END;
-            %]
-  <script type="text/javascript">
-   /* <![CDATA[ */
-   var [% method %]Data = [% datatable.data.as_json %];
-   
-   // populate global relatedMatrix object
-   YAHOO.rdgc.relatedMatrixInfo.[% method %] = {
-    colDefs: [% datatable.columns.as_json %],
-    fields: [% datatable.col_keys.as_json %],
-    pk: '[% datatable.pk %]',
-    info_url: '[% info.url %]',
-    parent: '[% method %]',
-    parent_url: '[% c.uri_for(oid) %]',
-    parent_oid: '[% oid %]',
-    url: '[% info.url %]/yui_datatable?',
-    count_url: '[% info.url %]/yui_datatable_count?_page_size=10',  // small page size
-    anchor: '[% method %]Matrix',
-    cmap: [% info.cmap.list('each').as_json || '0' %],
-    pageSize: 0,
-    totalPages: 0,
-    totalResults: 0,
-    divId: "relatedList",
-    name: "[% method | ucfirst %]"
-   };
-   
-   // define globally per page so add_row() can find it   
-   var [% method %]Matrix = new function() {
-   
-        // create new arrays so we can optionally add remove button
-        // and not affect original object.
-        var myColumnDefs = [];
-        var myFields     = [];
-        var i;
-        for (i=0; i < YAHOO.rdgc.relatedMatrixInfo.[% method %].colDefs.length; i++) {
-            myColumnDefs[i] = YAHOO.rdgc.relatedMatrixInfo.[% method %].colDefs[i];
-        }
-        for (i=0; i < YAHOO.rdgc.relatedMatrixInfo.[% method %].fields.length; i++) {
-            myFields[i] = YAHOO.rdgc.relatedMatrixInfo.[% method %].fields[i];
-        }
-        
-        [% IF info.map_class # many2many only gets remove column %]
-        // many2many only
-        myColumnDefs.push({key:"_remove", label:"remove", sortable:false}); 
-        myFields.push("_remove");
-        [% END %]
-   
-        this.myDataSource = new YAHOO.util.DataSource([% method %]Data);
-        this.myDataSource.responseType = YAHOO.util.DataSource.TYPE_JSARRAY;
-        this.myDataSource.responseSchema = { fields: myFields };
-        
-        // row click handler
-        [% IF info.map_class # many2many relationship ONLY!! %]
-        this.handleRowClick = function(oArgs) {
-            // get pk value for this row
-            YAHOO.util.Event.stopEvent(oArgs.event);
-            var oSelf       = [% method %]Matrix;
-            var oDataTable  = oSelf.myDataTable;
-            var target      = oArgs.target;
-            var vtarget     = YAHOO.util.Event.getTarget(oArgs.event);
-            var record      = oDataTable.getRecord(target);
-            var column      = oDataTable.getColumn(vtarget);
-            var pk          = record.getData(YAHOO.rdgc.relatedMatrixInfo.[% method %].pk);
-            
-            // remove this row from relationship
-            if (column.key == '_remove') {
-                if (confirm('Are you sure?')) {
-                    // make ajax call to remove relationship
-                    YAHOO.util.Connect.asyncRequest(
-                    'POST',
-                    '[% c.uri_for( oid, 'rm_m2m', method, datatable.pk ) %]/' + pk,
-                    {
-                        success: function (o) {
-                            if (o.responseText == 'Ok') {
-                                oDataTable.deleteRow(target);  // visibly remove
-                            } else {
-                                alert(o.responseText);
-                            }
-                        },
-                        failure: function (o) {
-                            alert(o.statusText);
-                        },
-                    }
-                    );
-                }
-            }
-            // redirect to edit screen
-            else {
-                var newurl      = '[% info.url %]/' + pk + '/' + '[% info.controller.can_write(c) ? 'edit' : 'view' %]';
-                window.location.href = newurl;
-            }
-        };
-        [% ELSE %]
-        this.handleRowClick = function(oArgs) {
-            // get pk value for this row
-            YAHOO.util.Event.stopEvent(oArgs.event);
-            var oSelf       = [% method %]Matrix;
-            var oDataTable  = oSelf.myDataTable;
-            var target      = oArgs.target;
-            var vtarget     = YAHOO.util.Event.getTarget(oArgs.event);
-            var record      = oDataTable.getRecord(target);
-            var column      = oDataTable.getColumn(vtarget);
-            var pk          = record.getData(YAHOO.rdgc.relatedMatrixInfo.[% method %].pk);            
-            var newurl      = '[% info.url %]/' + pk + '/' + '[% info.controller.can_write(c) ? 'edit' : 'view' %]';
-            window.location.href = newurl;   
-        };
-        [% END %]
-
-        this.myDataTable = new YAHOO.widget.DataTable("[% info.method %]Id",
-                myColumnDefs, this.myDataSource, {caption:"Related [% info.method %]"});
-                
-        // make each row click-able link to the editable record
-        // Subscribe to events for row selection
-        this.myDataTable.subscribe("rowMouseoverEvent", this.myDataTable.onEventHighlightRow);
-        this.myDataTable.subscribe("rowMouseoutEvent",  this.myDataTable.onEventUnhighlightRow);
-        this.myDataTable.subscribe("rowClickEvent",     this.handleRowClick);
-   };
-
-    /* ]]> */
-  </script> 
-  [%    
-        END;  # FOREACH relationship
-%]
-
-__add_row_panel__
-
-        <div id="addListPanel"><div class="hd"></div><div class="bd"></div></div>
-        
-        <script type="text/javascript">
-        /* <![CDATA[ */
-
-        // global var holding data for all related matrix tables.
-        YAHOO.rdgc.relatedMatrixInfo = {};
-        
-        // create a overlay panel that uses the div
-        YAHOO.rdgc.addRowMatrix = new YAHOO.widget.ResizePanel(
-                'addListPanel', 
-                { 
-                    width: "600px",
-                    fixedcenter: true, 
-                    constraintoviewport: true, 
-                    visible: false
-                    
-                } );
-
-                
-        YAHOO.rdgc.addRowMatrix.subscribe("hide", YAHOO.rdgc.enable_all_buttons);
-        YAHOO.rdgc.addRowMatrix.render();
-                
-         
-        /* ]]> */
-        </script>
-
-__jsonify__
-[% # serialize a RDBO object using JSON::XS instead of JSON::Syck
-    SET data = {};
-    FOREACH col IN object.meta.column_names;
-        val = object.$col;
-        IF val.isa('DateTime');
-            data.$col = val  _ '';
-        ELSE;
-            data.$col = val;
-        END;
-    END;
-    # serialize
-    data.as_json;
-%]
-
-__search__
-[%# generic search screen %]
-
-  [% PROCESS rdgc/header.tt %]
-  
-  <div id="main">
-  
-  <form method="get"
-        action="[% c.uri_for('search') %]"
-        class="rdgc"
-        >
-   <fieldset>
-    <legend>Search [% c.action.namespace %]</legend>
-     
-     [% PROCESS rdgc/form.tt 
-            show_hidden_fields=1 %]
-    
-    <label><!-- satisfy css --></label>
-    <input class="button" type="submit" name="search" value="Search" />
-    <input class="button" type="reset" value="Reset" />
-  </fieldset>
- </form>
- 
- [% IF results.count %]
-  [% PROCESS rdgc/results.tt %]
- [% ELSIF results.query.plain_query_str %]
-  <div>
-  Sorry, no results for 
-  <strong>[% results.query.plain_query_str %]</strong>.
-  </div> 
- [% END %]
- 
- </div>
- 
- [% PROCESS rdgc/footer.tt %]
-
-__list__
-[%# generic browse screen %]
-
-  [% PROCESS rdgc/header.tt %]
-  
-  <div id="main"> 
- [% IF results.count %]
-  [% PROCESS rdgc/results.tt %]
- [% ELSIF results.query.plain_query_str %]
-  <div>
-  Sorry, no results for 
-  <strong>[% results.query.plain_query_str %]</strong>.
-  </div>
- [% ELSE %]
-  <div>Sorry, no results.</div>
- [% END %]
- </div>
- 
- [% PROCESS rdgc/footer.tt %]
-   
-
-__yui_datatable_setup__
-[% # set up some same defaults
-
-    SET controller              = c.controller(); # no arg == c.action.class
-    DEFAULT datatable           = {};
-    DEFAULT datatable.pk        = controller.config.primary_key;
-    DEFAULT datatable.columns   = [];
-    DEFAULT datatable.url       = c.uri_for('yui_datatable', results.query.plain_query);
-    UNLESS datatable.url.match('\?');
-        datatable.url = datatable.url _ '?';
-    END;
-    
-    # if columns are not defined at controller level,
-    # then pull list of field names from controller to use.
-    # default is all columns. See MyApp::Base::Controller::RHTMLO.
-    IF !datatable.columns.size;
-        FOREACH f IN controller.yui_datatable_field_names;
-            datatable.columns.push( { 
-                    key = f, 
-                    label = form.field(f).label.localized_text, 
-                    sortable = c.view('RDGC').true 
-                    } );
-        END;
-    END;
-    
-    # create list of column key values from .columns
-    datatable.col_keys = [];
-    FOREACH col IN datatable.columns;
-        datatable.col_keys.push( col.key );
-    END;
-    
-    datatable.show_related_values = {};
-    FOREACH f IN datatable.col_keys;
-        related  = form.related_field( f, c );
-        NEXT UNLESS related;
-        IF (f == datatable.pk);
-            NEXT;
-        END;
-        SET h = {foreign_field = '', method = ''};
-        h.foreign_field = form.show_related_field_using( related.class, f );
-        h.method        = related.method;
-        datatable.show_related_values.$f = h;
-    END;
-
-    
-%]
-
-__yui_datatable_js__
-[%# generate JS for YUI datatable widget.
-    format of 'datatable' should be:
-    
-    datatable = {
-        pk          = 'id'  # primary key
-        columns     = [ # rendered as json
-                {key:"id", label:"ID", sortable:true},
-                ...
-            ]
-    
-%]
-[% PROCESS rdgc/yui_datatable_setup.tt %]
-<style type="text/css">
- .yui-skin-sam .yui-dt-body { cursor:pointer; } /* when rows are selectable */
-</style>
-<script type="text/javascript">
-  /* <![CDATA[ */
-
-    var clickHandler = function(oArgs) {
-                // get pk value for this row
-                YAHOO.util.Event.stopEvent(oArgs.event);
-                var oSelf       = myMatrix[% datatable.counter %];
-                var oDataTable  = oSelf.myDataTable;
-                var target      = oArgs.target;
-                var record      = oDataTable.getRecord(target);
-                var pk          = record.getData("[% datatable.pk %]");
-                var newurl      = '[% c.uri_for('') %]/' + pk + '/' + '[% c.controller.can_write(c) ? 'edit' : 'view' %]';
-                window.location.href = newurl;
-            };
-    var matrixOpts[% datatable.counter %] = {
-        colDefs: [% datatable.columns.as_json %],
-        pageSize: [% results.pager.entries_per_page %],
-        pk: "[% datatable.pk %]",
-        totalPages: [% results.pager.last_page %],
-        totalResults: [% results.count %],
-        anchor: "matrix[% datatable.counter %]",
-        url: "[% datatable.url %]",
-        divId: "results_matrix[% datatable.counter %]",
-        rowClickHandler: clickHandler,
-        fields: [% datatable.col_keys.as_json %]
-    };
-    var myMatrix[% datatable.counter %] = YAHOO.rdgc.create_results_matrix(matrixOpts, 1);
-  
- /* ]]> */
-</script>
-
-__results__
-[%# search result matrix %]
-[%
-    # this template called by rdgc/search.tt if there
-    # are any search results to display
-%]
-
-<div id="results">
-
- <div>
- [% results.count %] total matches
- [% IF search.form.as_excel # TODO make the Excel export a feature of CRUD %]
-    [% bullet %]
-    <a href="[% search.form.as_excel %]" >Export as Excel</a>
- [% END %]
- </div>
-
- <div id="dt-page-nav">
-    <span id="prevLink"></span>
-    Showing items
-    <span id="startIndex">0</span> &ndash; <span id="endIndex">[% results.query.limit %]</span>
-    <span id="ofTotal"></span> <span id="nextLink"></span>
- </div>
-
- <div id="results_matrix[% datatable.counter %]"></div>
- 
- [% PROCESS rdgc/yui_datatable_js.tt %]
-
-</div>
-
-__yui_datatable_count__
-[%
-    SET data = {
-        count       => results.count
-        pageSize    => results.pager.entries_per_page,
-        page        => results.pager.current_page,
-        totalPages  => results.pager.last_page
-        };
-    
-    data.as_json;
-%]
-
-__yui_datatable__
-[%
-    PROCESS rdgc/yui_datatable_setup.tt;
-    records = [];
-    data    = {};
-            
-    FOR r IN results.results;
-        record = {};
-        FOR f IN datatable.col_keys;
-            
-            IF form.field(f).isa('Rose::HTML::Form::Field::DateTime');
-               IF ( r.$f.epoch.defined );
-                record.$f = r.$f  _ '';
-               ELSE;
-                record.$f = '';
-               END;
-               
-            ELSIF form.field(f).isa('Rose::HTML::Form::Field::PopUpMenu');
-                # use the visible value in results rather than literal
-                record.$f = form.field(f).value_label(r.$f);
-            
-            ELSIF (     datatable.show_related_values.exists(f)
-                    &&  form.show_related_values
-                  );
-                      
-                IF (datatable.show_related_values.$f.foreign_field);
-                    m  = datatable.show_related_values.$f.method;
-                    ff = datatable.show_related_values.$f.foreign_field;
-                    record.$f = r.$m.$ff;
-                END;
-                
-            ELSE;
-                record.$f = r.$f;
-            END;
-        END;
-        records.push(record);
-    END;
-    
-    data.recordsReturned = records.size;
-    data.totalRecords    = results.count + 0;  # make sure it is treated as an int.
-    data.pageSize        = results.pager.entries_per_page;
-    data.page            = results.pager.current_page;
-    data.sort            = c.req.param('_sort');
-    data.dir             = c.req.param('_dir');
-    data.records         = records;
-    
-    data.as_json;
-%]
-      
-__menu__
-[%# dynamic menu. Algorithm based on the example in the badger book. %]
-[%
-    # YUI flyout menus
-    # menu object looks like:
-    # menu = {
-    #   items = [
-    #       { href = '/uri/some/where', txt = 'Some Where', class = 'active' },
-    #       { href = '/uri/some/else' , txt = 'Some Else',
-    #           items = [
-    #               { href = '/uri/some/else/1', txt = 'Some Else 1' },
-    #               { href = '/uri/some/else/2', txt = 'Some Else 2' }
-    #               ]
-    #       }
-    #   ],
-    #   id = 'navmenu'  # default - optional key
-    # }
-    # c.uri_for is run on every href, so plain uris are ok.
-    #
-    # NOTE that we INCLUDE in order to localize vars each time.
-    
-    SET depth      = 1;
-%]
-
-<div id="[% menu.id || 'vert_menu' %]" class="yuimenubar yuimenubarnav">
- <div class="bd">
-  <ul class="first-of-type">
-  [% INCLUDE menu_items items = menu.items %]
-  </ul><!-- end [% menu.id || 'vert_menu' %] -->
- </div>
-</div>
-
-[% BLOCK menu_items %]
- [% FOR i = items %]
- <!-- start [% i.txt %]  depth = [% depth %] -->
- [% IF depth == 1 # horiz menu needs different class values %]
- <li class="yuimenubaritem first-of-type"><!-- depth = [% depth %] -->
-  <a class="[% i.class %] yuimenubaritemlabel" href="[% i.href %]">[% i.txt %]</a>
- [% ELSE %]
- <li class="yuimenuitem"><!-- depth = [% depth %] -->
-  <a class="[% i.class %] yuimenuitemlabel" href="[% c.uri_for(i.href) %]">[% i.txt %]</a>
- [% END %]
-  [% IF i.exists('items') %]
-   <div class="yuimenu">
-    <div class="bd">
-     <ul class="first-of-type">
-    [% INCLUDE menu_items
-        items = i.items
-        depth = depth + 1
-        %]
-     </ul>
-    </div>
-   </div>
-  [% ELSIF loop.last %]
-   [% depth = depth - 1 %]
-  [% END %]
- </li>
- <!-- end [% i.txt %] -->
- [% END %]
-[% END %]
-
-
-__autocomplete__
-[%# ajax autocompletion field. The default has no JS implementation.
-# 'input' object should have following keys/methods:
-#
-#   id
-#   label (optional)
-#   name (optional - defaults to id. used as param name for query.)
-#   url
-#   csize (optional - defaults to 30)
-#   value (optional)
-%]
-[% input.label %]
-<input autocomplete="off" [% # do not let browser complete it for you %]
-       id="[% input.id %]" 
-       name="[% input.name || input.id %]" 
-       size="[% input.csize || '30' %]"
-       type="text" 
-       value="[% input.value %]" />
-<span class="auto_complete" id="[% input.id %]_auto_complete"></span>
-<script type="text/javascript">
- /* <![CDATA[ */
-/* this is what scriptaculous/prototype require.
-    var [% input.id %]_autocompleter = new Ajax.Autocompleter(
-        '[% input.id %]', 
-        '[% input.id %]_auto_complete', 
-        '[% input.url %]', 
-        {
-         minChars: 1
-        });
-*/
-/* ]]> */
-</script>
-
-
-__header__
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
-
- <head>
-  <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-  
-  <title>[% c.config.name || 'Rose::DBx::Garden::Catalyst Application' %]</title>
-  
-  [% YUI_VERSION = '2.3.1' %]
-            
-  <!-- YUI support -->
-  <!-- reset css -->
-  <link rel="stylesheet" type="text/css" 
-        href="http://yui.yahooapis.com/[% YUI_VERSION %]/build/reset-fonts-grids/reset-fonts-grids.css" />
-
-  <!-- Core + Skin CSS -->
-  <link rel="stylesheet" type="text/css" 
-        href="http://yui.yahooapis.com/[% YUI_VERSION %]/build/assets/skins/sam/skin.css" />
-
-  <!-- Rose Garden style -->
-  <link rel="stylesheet" type="text/css" media="all"
-        href="[% c.uri_for('/static') %]/rdgc/rdgc.css" />
-
-
-<!-- js -->
-  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/utilities/utilities.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/container/container-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/menu/menu-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/logger/logger-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/history/history-beta-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/datatable/datatable-beta-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/datasource/datasource-beta-min.js"></script>
-  <script type="text/javascript" src="http://yui.yahooapis.com/[% YUI_VERSION %]/build/element/element-beta-min.js"></script>
-  <script type="text/javascript" src="[% c.uri_for('/static') %]/rdgc/rdgc.js"></script>
-  <script type="text/javascript" src="[% c.uri_for('/static') %]/rdgc/json.js"></script>
-  
-  <script type="text/javascript">
-     // Initialize and render the menu when it is available in the DOM
-     YAHOO.util.Event.onContentReady("schema_menu", function () {
-     /*
-          Instantiate the menu.  The first argument passed to the
-          constructor is the id of the element in the DOM that
-          represents the menu; the second is an object literal
-          representing a set of configuration properties for
-          the menu.
-     */
-     var oMenu = new YAHOO.widget.MenuBar(
-                       "schema_menu",
-                       {
-                           autosubmenudisplay: true,
-                           hidedelay: 750,
-                           lazyload: true
-                       }
-                       );
-     /*
-          Call the "render" method with no arguments since the
-          markup for this menu already exists in the DOM.
-     */
-     oMenu.render();
-     });
-  </script>
-            
- </head>
- <body class="yui-skin-sam"><!-- YUI requires this class -->
- 
- [%
-    # default is to just load menu.yml files from disk each time
-    # but could also hardcode menu hash here (or ....).
-    schema_menu  = c.view('RDGC').read_yaml(c.path_to('root', 'rdgc', 'schema_menu.yml'));
-    PROCESS rdgc/menu.tt menu = schema_menu;
-  %]                                                                           
-
-__footer__
-
-[%# YUI logger %]
- [% IF c.config.yui_logger %]
- <div id="yuiLogger" style="padding-left:2em;font-size:150%"></div>
- <script type="text/javascript">
-  /* <![CDATA[ */
- var myLogReader = new YAHOO.widget.LogReader("yuiLogger");
-  /* ]]> */
- </script>
- [% END %]
-
- <div id="rdgc_footer">
- Created via Rose::DBx::Garden::Catalyst
- </div>
- 
- </body>
-</html>
-
 
 __js__
 /* Rose::DBx::Garden::Catalyst custom JavaScript */
  
 YAHOO.namespace('rdgc');
 
-YAHOO.rdgc.add_matrix_row = function( matrix, matrixInfo ) {
-            
-    // disable all the buttons on the page so we only get one panel at a time.
-    var buttons = YAHOO.util.Dom.getElementsByClassName('addRowButton');
-    for (var i = 0; i < buttons.length; i++) {
-        YAHOO.rdgc.disable_button(buttons[i]);
+/* use FireBug for debugging if it is available */
+if (!YAHOO.rdgc.log) {
+    if (typeof console != 'undefined' && YAHOO.rdgc.OK2LOG) {
+        if (window.console && !console.debug) {
+            // safari
+            //alert("window.console is defined");
+            YAHOO.rdgc.log = function() { window.console.log(arguments[0]) };
+        }
+        else if (console.debug) {
+            YAHOO.rdgc.log = console.debug;
+        }
+        else {
+            alert("no window.console or console.debug");
+            YAHOO.rdgc.log = function() { }; // do nothing
+        }
+        YAHOO.rdgc.log("console logger ok");
     }
+    else {
+        YAHOO.rdgc.log = function() { YAHOO.log(arguments); }
+        YAHOO.rdgc.log("rdgc logger aliased to YAHOO.log");
+    }
+}
 
+
+YAHOO.rdgc.handleXHRFailure = function(o) {
+    alert("error: server failure (status = " + o.status + ")" + ' msg: ' + o.responseText);
+};
+
+/*
+http://developer.yahoo.com/yui/examples/autocomplete/ac_ysearch_json.html
+*/
+YAHOO.rdgc.autocomplete_text_field = function( opts ) {
+
+    this.oACDS = new YAHOO.widget.DS_XHR(opts.url, [ 'ResultSet.Result', opts.param.c, 'pk' ]);
+    this.oACDS.queryMatchContains = true;
+    this.oACDS.scriptQueryAppend = opts.params;
+    
+    var myItemSelectEventHandler = function( oSelf, elItem, oData ) {
+        //YAHOO.rdgc.log('set ' + opts.fname + ' = ' + elItem[2][1]);
+        var hiddenField = YAHOO.util.Dom.get(opts.fname);
+        hiddenField.value = elItem[2][1];
+    };
+
+    // Instantiate AutoComplete
+    this.oAutoComp = new YAHOO.widget.AutoComplete(opts.id, opts.container_id, this.oACDS);
+    this.oAutoComp.useShadow = true;
+    this.oAutoComp.maxResultsDisplayed = opts.limit;
+    this.oAutoComp.itemSelectEvent.subscribe(myItemSelectEventHandler);
+    
+    /*
+    this.oAutoComp.formatResult = function(oResultItem, sQuery) {
+        return oResultItem[1].Title + " (" + oResultItem[1].Url + ")";
+    };
+    */
+    /*
+    this.oAutoComp.doBeforeExpandContainer = function(oTextbox, oContainer, sQuery, aResults) {
+        var pos = YAHOO.util.Dom.getXY(oTextbox);
+        pos[1] += YAHOO.util.Dom.get(oTextbox).offsetHeight + 2;
+        YAHOO.util.Dom.setXY(oContainer,pos);
+        return true;
+    };
+    */
+
+    // Stub for form validation
+    this.validateForm = function() {
+        if (opts.validator) {
+            return opts.validator();
+        }
+        else {
+            return true;
+        }
+    };
+};
+
+YAHOO.rdgc.add_matrix_row = function( matrix ) {
+            
     // populate the panel div with a datatable.
 
     // header
-    YAHOO.rdgc.addRowMatrix.setHeader( 'Browse all ' + matrixInfo.name + ' records' );
+    YAHOO.rdgc.addRowMatrix.setHeader( 'Browse all ' + matrix.opts.name + ' records' );
     
     // body
-    YAHOO.rdgc.addRowMatrix.setBody('<div id="dt-page-nav">' +
-    '<span id="prevLink"></span> Showing items ' +
-    '<span id="startIndex">0</span> &ndash; <span id="endIndex"></span>' +
-    '<span id="ofTotal"></span> <span id="nextLink"></span></div>' +
+    YAHOO.rdgc.addRowMatrix.setBody(
+    '<div class="panel pager_wrapper">' + 
+     '<div id="panel_msg"><span style="color:#fff;">placeholder</span></div>' + 
+     '<div id="panel' + matrix.opts.pagerId + '" class="pager"></div>' + 
+     '<div id="panel_autocomplete">' + 
+      '<label for="panel_ac">Filter results:</label>' +
+      '<input type="text" value="" id="panel_ac" class="autocomplete" />' + 
+      '<div id="panel_ac_hidden" class="hidden"></div>' +
+     '</div>' +
+     '<br/>' +
+    '</div>' +
     '<div id="relatedList"></div>'
     );
    
     // get initial stats 
     var handleSuccess = function(o) {
-        if (o.responseText !== undefined) {                    
+        if (o.responseText !== undefined) {
+            //YAHOO.log("success text: " + o.responseText, "related");                  
             var stats = o.responseText.parseJSON();
             //alert("stats: " + stats.toJSONString());
-            matrixInfo.pageSize         = parseInt(stats.pageSize, 10);
-            matrixInfo.totalResults     = parseInt(stats.count, 10);
-            matrixInfo.totalPages       = parseInt(stats.totalPages, 10);
-            matrixInfo.currentPage      = parseInt(stats.page, 10);
+            matrix.opts.pageSize         = parseInt(stats.pageSize, 10);
+            matrix.opts.totalResults     = parseInt(stats.count, 10);
+            matrix.opts.totalPages       = parseInt(stats.totalPages, 10);
+            matrix.opts.currentPage      = parseInt(stats.page, 10);
             //alert("matrix stats set");
             
             // set the onclick handler for this particular matrix
             // when a row in the datatable is clicked, the related record is added
             // to the matrix and a XHR call is made back to the server to add it to the db.
-            matrixInfo.rowClickHandler = function(oArgs) {
+            matrix.opts.rowClickHandler = function(oArgs) {
                 YAHOO.util.Event.stopEvent(oArgs.event);
                 var oSelf       = listMatrix;
                 var oDataTable  = oSelf.myDataTable;
                 var target      = oArgs.target;
                 var record      = oDataTable.getRecord(target);
-                var pk          = record.getData(matrixInfo.pk);
+                var pk          = record.getData(matrix.opts.pk);
        
-                //alert(matrixInfo.name + ": got pk " + pk + ' cmap: ' + matrixInfo.cmap.toJSONString());
-                if (matrixInfo.cmap) {
+                //alert(matrix.opts.name + ": got pk " + pk + ' cmap: ' + matrix.opts.cmap.toJSONString());
+                if (matrix.opts.cmap) {
                     // just need to update the foreign key value in selected row
-                    var postData = matrixInfo.cmap[1] + "=" + matrixInfo.parent_oid;
-                    var url = matrixInfo.info_url + '/' + pk + '/save?return=json';
+                    var postData = matrix.opts.cmap[1] + "=" + matrix.opts.parent_oid;
+                    var url = matrix.opts.info_url + '/' + pk + '/save?return=json';
                     //alert("POST url: " + url + '?' + postData);
                     
                     var req = YAHOO.util.Connect.asyncRequest('POST', url,
@@ -1024,23 +212,24 @@ YAHOO.rdgc.add_matrix_row = function( matrix, matrixInfo ) {
                                 if (o.responseText !== undefined) {
                                     var newRow = o.responseText.parseJSON();
                                     matrix.myDataTable.addRow(newRow, 0);
+                                    YAHOO.util.Dom.get('panel_msg').innerHTML = 'Record added';
                                 }
                                 else {
                                     alert("unknown server error");
-                                    YAHOO.rdgc.enable_all_buttons();
                                 }
                             },
                             failure: function(o) {
-                                alert("error: server failure (status = " + o.status + ")");
-                                YAHOO.rdgc.enable_all_buttons();
+                                YAHOO.rdgc.handleXHRFailure(o);
+                                YAHOO.util.Dom.get('panel_msg').innerHTML = 
+                                    '<span class="error">Action failed</span>';
                             }
                         },
                         postData);
                     
                 }
                 else {
-                    var url = matrixInfo.parent_url + '/add_m2m/' + matrixInfo.parent + '/' +
-                                matrixInfo.pk + '/' + pk;
+                    var url = matrix.opts.parent_url + '/add_m2m/' + matrix.opts.parent + '/' +
+                                matrix.opts.pk + '/' + pk;
                     //alert("add_m2m :" + url);
                     
                     var req = YAHOO.util.Connect.asyncRequest('POST', url,
@@ -1048,17 +237,19 @@ YAHOO.rdgc.add_matrix_row = function( matrix, matrixInfo ) {
                             success: function(o) {
                                 if (o.responseText !== undefined) {
                                     var newRow = o.responseText.parseJSON();
-                                    newRow._remove = ' X ';
+                                    newRow._remove = 'X';
                                     matrix.myDataTable.addRow(newRow, 0);
+                                    YAHOO.util.Dom.get('panel_msg').innerHTML = 'Record added';
+                                    YAHOO.rdgc.decorateRemoveCells();
                                 }
                                 else {
                                     alert("unknown server error");
-                                    YAHOO.rdgc.enable_all_buttons();
                                 }
                             },
                             failure: function(o) {
-                                alert("error: server failure (status = " + o.status + ")");
-                                YAHOO.rdgc.enable_all_buttons();
+                                YAHOO.rdgc.handleXHRFailure(o);
+                                YAHOO.util.Dom.get('panel_msg').innerHTML = 
+                                    '<span class="error">Action failed</span>';
                             }
                         },
                         postData);  
@@ -1066,8 +257,13 @@ YAHOO.rdgc.add_matrix_row = function( matrix, matrixInfo ) {
     
             }
             
-            // bookmark history initialization breaks this so pass 0 for useHistory
-            var listMatrix = YAHOO.rdgc.create_results_matrix(matrixInfo, 0);
+            // create matrix object
+            var listMatrix = YAHOO.rdgc.panelled_related_records_matrix(matrix.opts);
+            
+            // when panel is closed
+            YAHOO.rdgc.addRowMatrix.hideEvent.subscribe(function() {
+                // nothing for now
+            });
     
             // show the populated panel
             YAHOO.rdgc.addRowMatrix.show();
@@ -1077,373 +273,715 @@ YAHOO.rdgc.add_matrix_row = function( matrix, matrixInfo ) {
             alert("error: no data in server response");
         }
     };
-    
-    var handleFailure = function(o) {
-        alert("error: server failure (status = " + o.status + ")");
-        YAHOO.rdgc.enable_all_buttons();
-    };
-    
+        
     var callback = { 
         success: handleSuccess, 
-        failure: handleFailure
+        failure: YAHOO.rdgc.handleXHRFailure
     };
-    var request = YAHOO.util.Connect.asyncRequest('GET', matrixInfo.count_url, callback);
+    var request = YAHOO.util.Connect.asyncRequest('GET', matrix.opts.count_url, callback);
     
 }
 
-/* pageable datatable for search results.
-   See http://developer.yahoo.com/yui/examples/datatable/dt_server_pag_sort.html
+
+/* 2.5.0 related records matrix. No History for this popup panel, but 
+   does have sorting and autocomplete.
  */
-
-YAHOO.rdgc.create_results_matrix = function ( matrixOpts, useHistory ) {
-
+YAHOO.rdgc.panelled_related_records_matrix = function( matrixOpts ) {
+  
+  YAHOO.rdgc.panel_state = {
+    results:    matrixOpts.pageSize,
+    startIndex: 0,
+    sort:       matrixOpts.pk,
+    dir:        "asc",
+    filter:     ""
+  };
+  
   var MyMatrix = new function() {
-        // Function to return initial config values,
-        // which could be the default set, or parsed from a bookmarked state
-        this.getInitialConfig = function() {
-            // Parse bookmarked state
-            var tmpHash = {};
-            if(location.hash.substring(1).length > 0) {
-                var sBookmark = location.hash.substring(1);
-                sBookmark = sBookmark.substring(sBookmark.indexOf("=")+1);
-                var aPairs = sBookmark.split("&");
-                for(var i=0; i<aPairs.length; i++) {
-                    var sPair = aPairs[i];
-                    if(sPair.indexOf("=") > 0) {
-                        var n = sPair.indexOf("=");
-                        var sParam = aPairs[i].substring(0,n);
-                        var sValue = aPairs[i].substring(n+1);
-                        tmpHash[sParam] = sValue;
+    
+    YAHOO.log("MyMatrix called", "matrix");
+    YAHOO.log("opts = " + matrixOpts.toJSONString(), "matrix");
+
+    var DataSource = YAHOO.util.DataSource,
+        DataTable  = YAHOO.widget.DataTable,
+        Paginator  = YAHOO.widget.Paginator,
+        Dom        = YAHOO.util.Dom,
+        Event      = YAHOO.util.Event;
+
+    var mySource = new DataSource(matrixOpts.panel_url);
+    mySource.responseType   = DataSource.TYPE_JSON;
+    mySource.responseSchema = {
+        resultsList : 'records',
+        totalRecords: 'totalRecords',
+        fields      : matrixOpts.fields
+    };
+    var myDataTable = null;
+    
+    if (Dom.get('panel_ac') && matrixOpts.colFilter) {
+        Dom.get('panel_ac').value='';  // always reset to avoid sticky browsers
+        var getFilter = function(query) {
+            var req = '';
+            // OR together all the filterable fields
+            if (query.length) {
+                var i;
+                for(i=0; i<matrixOpts.colFilter.length; i++) {
+                    req += '&' + matrixOpts.colFilter[i] + '=' + query;
+                }
+                req += '&_op=OR&_fuzzy=1';
+            }
+            // remember this query in state, from which buildQueryString() will work.
+            YAHOO.rdgc.panel_state.filter = req;
+            YAHOO.rdgc.panel_state.startIndex = 0;
+            
+            // Create callback for data request
+            var oCallback = {
+                success: myDataTable.onDataReturnInitializeTable,
+                failure: myDataTable.onDataReturnInitializeTable,
+                scope: myDataTable,
+                argument: {
+                    // Pass in sort values so UI can be updated in callback function
+                    sorting: {
+                        key: YAHOO.rdgc.panel_state.sort,
+                        dir: YAHOO.rdgc.panel_state.dir
+                    },
+                    pagination: {
+                        recordOffset: YAHOO.rdgc.panel_state.startIndex
                     }
                 }
             }
-
-            // Validate values
-
-            var newPageSize = YAHOO.util.DataSource.parseNumber(tmpHash["_page_size"]);
-            if(!YAHOO.lang.isNumber(newPageSize)) {
-                newPageSize = matrixOpts.pageSize;
-            }
-
-            var newPage = YAHOO.util.DataSource.parseNumber(tmpHash["_page"]);
-            if(!YAHOO.lang.isValue(newPage)) {
-                 newPage = 1;
-            }
-
-            var newSort = tmpHash["_sort"];
-            if(!YAHOO.lang.isValue(newSort)) {
-                newSort = matrixOpts.pk;
-            }
-
-            var newDir = tmpHash["_dir"];
-            if(!YAHOO.lang.isValue(newDir)) {
-                newDir = "asc";
-            }
             
-            // private paginator because the YUI Paginator is broken
-            this.myPaginator = {
-                entries_per_page: newPageSize,
-                current_page:     newPage,
-                last_page:        matrixOpts.totalPages,
-                total:            matrixOpts.totalResults
-            };
-
-            return {
-                sortedBy: {
-                    key: newSort,
-                    dir: newDir
-                },
-                initialRequest: "&_page_size="+newPageSize+"&_page="+newPage+"&_sort="+newSort+"&_dir="+newDir,
-                selectionMode: "single"
-            };
+            mySource.sendRequest(buildQueryString(0), oCallback);
         };
+        
+        // allow for empty query to return all records
+        var checkFilterKey = function(acself, keycode) {
+            if (!Dom.get('panel_ac').value.length) {
+                getFilter('');
+            }
+        };
+        
+        var ACF = new YAHOO.widget.DS_JSFunction(getFilter);
+        ACF.minQueryLength = 0;
+        ACF.maxCacheEntries = 0; // always send request
+        var ACFilter = new YAHOO.widget.AutoComplete("panel_ac", "panel_ac_hidden", ACF);
+        ACFilter.textboxKeyEvent.subscribe(checkFilterKey);
+    }
+    else {
+        Dom.get('panel_autocomplete').addClass('hidden');
+    }
 
-        this.initialConfig = this.getInitialConfig();
+    var buildQueryString = function (state, datatable) {
+        var offset = YAHOO.rdgc.panel_state.startIndex;
+        var page_size = YAHOO.rdgc.panel_state.results;
+        if (state) {
+            offset = state.pagination.recordOffset;
+            page_size = state.pagination.rowsPerPage;
+        }
+        return YAHOO.rdgc.generateStateString(
+            offset,
+            YAHOO.rdgc.panel_state.sort,
+            YAHOO.rdgc.panel_state.dir,
+            page_size
+            ) + YAHOO.rdgc.panel_state.filter;
+    };
+    
+    var handlePagination = function(state, datatable) {
+    
+        //console.debug(state);
+        YAHOO.rdgc.panel_state.startIndex = state.recordOffset;
+        YAHOO.rdgc.panel_state.results    = state.rowsPerPage;
+        return DataTable.handleDataSourcePagination(state, datatable);
+    }
+    
+    // function used to intercept sorting requests
+    var handleSorting = function (oColumn) {
+
+        // Which direction
+        var sDir = "asc";
+        
+        // Already sorted?
+        if(oColumn.key === this.get("sortedBy").key) {
+            sDir = (this.get("sortedBy").dir === "asc") ?
+                    "desc" : "asc";
+        }
+        
+        // must always return to page 1 because we can't rely on how sorted results are paged.
+        YAHOO.rdgc.panel_state.startIndex = 0;
+        YAHOO.rdgc.panel_state.dir = sDir;
+        YAHOO.rdgc.panel_state.sort = oColumn.key;
+        
+        var req = buildQueryString(0);
+        
+        // Create callback for data request
+        var oCallback = {
+            success: this.onDataReturnInitializeTable,
+            failure: this.onDataReturnInitializeTable,
+            scope: this,
+            argument: {
+                // Pass in sort values so UI can be updated in callback function
+                sorting: {
+                    key: oColumn.key,
+                    dir: (sDir === "asc") ? "asc" : "desc"
+                },
+                pagination: {
+                    recordOffset: YAHOO.rdgc.panel_state.startIndex
+                }
+            }
+        }
                 
-        var myState = ( "&_page_size="  + this.myPaginator.entries_per_page +
-                        "&_page="       + this.myPaginator.current_page +
-                        "&_sort="   + this.initialConfig.sortedBy.key +
-                        "&_dir="    + this.initialConfig.sortedBy.dir);
-                
+        // Send the request
+        this.getDataSource().sendRequest(req, oCallback);
+        
+    };
+    
+    var myPaginator = new Paginator({
+        containers         : ['panel' + matrixOpts.pagerId],
+        pageLinks          : 5,
+        rowsPerPage        : matrixOpts.pageSize,
+        //rowsPerPageOptions : [10,20,30],
+        firstPageLinkLabel  : '|&#171;',
+        lastPageLinkLabel   : '&#187;|',
+        previousPageLinkLabel: '&#171;',
+        nextPageLinkLabel   : '&#187;',
+        alwaysVisible       : false,  // do not show if less than 1 page
+        template            : 
+            "{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} <div class='pg-bar'></div>"
+    });
 
-        if (useHistory) {
-            this.myBookmarkedState = YAHOO.util.History.getBookmarkedState(matrixOpts.anchor);
-            this.myInitialState = this.myBookmarkedState || myState;
-            this.myBookmarkHandler = function(newBookmark) {
-                var oSelf = MyMatrix;
-                oSelf.myDataSource.sendRequest(newBookmark, 
-                                           oSelf.myDataTable.onDataReturnInitializeTable, 
-                                           oSelf.myDataTable);
-            };
-            YAHOO.util.History.register(matrixOpts.anchor, this.myInitialState, this.myBookmarkHandler);
-            YAHOO.util.History.initialize();
-            YAHOO.util.History.onLoadEvent.subscribe(function() {
-            // Column definitions
-            var myColumnDefs = matrixOpts.colDefs;
+    var myTableConfig = {
+        initialRequest          : buildQueryString(),
+        generateRequest         : buildQueryString,
+        paginationEventHandler  : handlePagination,
+        paginator               : myPaginator,
+        width                   : matrixOpts.panel_width,
+        height                  : matrixOpts.panel_height,
+        scrollable              : true,
+        sortedBy:               { key: matrixOpts.pk, dir: "asc" }
+    };
 
-            // Instantiate DataSource
-            this.myDataSource = new YAHOO.util.DataSource(matrixOpts.url);
-            this.myDataSource.responseType = YAHOO.util.DataSource.TYPE_JSON;
-            this.myDataSource.responseSchema = {
-                resultsList: "records",
-                fields: matrixOpts.fields
-            };
+    myDataTable = new DataTable(
+        'relatedList',  // hardcoded DOM id , 
+        matrixOpts.colDefs, 
+        mySource, 
+        myTableConfig
+    );
+    
+    myDataTable.sortColumn = handleSorting;
+    
+    // Subscribe to events for row selection
+    myDataTable.subscribe("rowMouseoverEvent", myDataTable.onEventHighlightRow);
+    myDataTable.subscribe("rowMouseoutEvent",  myDataTable.onEventUnhighlightRow);
+    myDataTable.subscribe("rowClickEvent",     matrixOpts.rowClickHandler);
+    
+    this.myDataTable = myDataTable;
 
-            // Instantiate DataTable
-            this.myDataTable = new YAHOO.widget.DataTable(matrixOpts.divId, myColumnDefs,
-                    this.myDataSource, this.initialConfig);
-                                
-            // can only select one row at a time
-            this.myDataTable.set("selectionMode", "single");
-                    
-            // make each row click-able with action defined by caller.
-            // Subscribe to events for row selection
-            this.myDataTable.subscribe("rowMouseoverEvent", this.myDataTable.onEventHighlightRow);
-            this.myDataTable.subscribe("rowMouseoutEvent",  this.myDataTable.onEventUnhighlightRow);
-            this.myDataTable.subscribe("rowClickEvent",     matrixOpts.rowClickHandler);
-
-            // Programmatically select the first row immediately
-            this.myDataTable.selectRow(this.myDataTable.getTrEl(0));
-
-            // Programmatically bring focus to the instance so arrow selection works immediately
-            this.myDataTable.focus();
-
-            // Custom code to parse the raw server data for Paginator values and page links and sort UI
-            this.myDataSource.doBeforeCallback = function(oRequest, oRawResponse, oParsedResponse) {
-                var oSelf           = MyMatrix;
-                var oDataTable      = oSelf.myDataTable;
-                var oRawResponse    = oRawResponse.parseJSON();
-                var recordsReturned = YAHOO.util.DataSource.parseNumber(oRawResponse.recordsReturned);
-                var page            = YAHOO.util.DataSource.parseNumber(oRawResponse.page);
-                var pageSize        = YAHOO.util.DataSource.parseNumber(oRawResponse.pageSize);
-                var totalRecords    = YAHOO.util.DataSource.parseNumber(oRawResponse.totalRecords);
-                var sort            = oRawResponse.sort;
-                var dir             = oRawResponse.dir;
-                
-                var startIndex      = (page -1) * pageSize;
-                var endIndex        = startIndex + recordsReturned;
-
-                // update paginator with new values
-                oSelf.myPaginator.current_page       = page;
-                oSelf.myPaginator.entries_per_page   = pageSize;
-                               
-                // Update the links UI
-                YAHOO.util.Dom.get("prevLink").innerHTML = (startIndex == 0) ? "" :
-                        "<a href=\"#previous\" alt=\"Show previous items\">&#171;&nbsp;Prev</a>" ;
-                YAHOO.util.Dom.get("nextLink").innerHTML = (endIndex >= totalRecords) ? "" :
-                        "<a href=\"#next\" alt=\"Show next items\">Next&nbsp;&#187;</a>";
-                YAHOO.util.Dom.get("startIndex").innerHTML = startIndex + 1;
-                YAHOO.util.Dom.get("endIndex").innerHTML   = endIndex;
-                YAHOO.util.Dom.get("ofTotal").innerHTML    = " of " + totalRecords;
-
-                // Update the config sortedBy with new values
-                var newSortedBy = {
-                    key: sort,
-                    dir: dir
-                }
-                oDataTable.set("sortedBy", newSortedBy);
-
-                return oParsedResponse;
-            };
-
-            // Hook up custom pagination
-            this.getPage = function(nPage, nResults) {
-                // If a new value is not passed in
-                // use the old value
-                if(!YAHOO.lang.isValue(nResults)) {
-                    nResults = this.myPaginator.entries_per_page;
-                }
-                // Invalid value
-                if(!YAHOO.lang.isValue(nPage)) {
-                    return;
-                }
-                if (nPage < 1) {
-                    nPage = 1;
-                }
-
-                var oSortedBy = this.myDataTable.get("sortedBy");
-                var newBookmark = "_page=" + nPage + "&_page_size=" + nResults +
-                        "&_sort=" + oSortedBy.key + "&_dir=" + oSortedBy.dir ;                        
-                YAHOO.util.History.navigate(matrixOpts.anchor, newBookmark);
-            };
-            this.getPreviousPage = function(e) {
-                YAHOO.util.Event.stopEvent(e);
-                // Already at first page
-                if(this.myPaginator.current_page == 1) {
-                    return;
-                }
-                this.getPage(this.myPaginator.current_page - 1);
-            };
-            this.getNextPage = function(e) {
-                YAHOO.util.Event.stopEvent(e);
-                
-                var paginator   = this.myPaginator;
-                var page        = paginator.current_page;
-                var lastPage    = paginator.last_page;
-                                                
-                // Already at last page
-                if(page >= lastPage) {
-                    return;
-                }
-                this.getPage(page + 1);
-            };
-            YAHOO.util.Event.addListener(YAHOO.util.Dom.get("prevLink"), "click", this.getPreviousPage, this, true);
-            YAHOO.util.Event.addListener(YAHOO.util.Dom.get("nextLink"), "click", this.getNextPage, this, true);
-
-            // Override function for custom sorting
-            this.myDataTable.sortColumn = function(oColumn) {
-                // Which direction
-                var sDir = "asc";
-                // Already sorted?
-                if(oColumn.key === this.get("sortedBy").key) {
-                    sDir = (this.get("sortedBy").dir === "asc") ? "desc" : "asc";
-                }
-
-                var oPag = this.get("paginator");
-                var newBookmark = "&_sort=" + oColumn.key + "&_dir=" + sDir + "&_page_size=" + oPag.rowsThisPage + "&_page=1";
-                YAHOO.util.History.navigate(matrixOpts.anchor, newBookmark);
-            };
-        }, this, true);
-      
-      }
-      else {   // no history (for panel mostly)
-      
-            this.myInitialState = myState;
-      
-            // Column definitions
-            var myColumnDefs = matrixOpts.colDefs;
-
-            // Instantiate DataSource
-            this.myDataSource = new YAHOO.util.DataSource(matrixOpts.url);
-            this.myDataSource.responseType = YAHOO.util.DataSource.TYPE_JSON;
-            this.myDataSource.responseSchema = {
-                resultsList: "records",
-                fields: matrixOpts.fields
-            };
-
-            // Instantiate DataTable
-            this.myDataTable = new YAHOO.widget.DataTable(matrixOpts.divId, myColumnDefs,
-                    this.myDataSource, this.initialConfig);
-                                
-            // can only select one row at a time
-            this.myDataTable.set("selectionMode", "single");
-                    
-            // make each row click-able with action defined by caller.
-            // Subscribe to events for row selection
-            this.myDataTable.subscribe("rowMouseoverEvent", this.myDataTable.onEventHighlightRow);
-            this.myDataTable.subscribe("rowMouseoutEvent",  this.myDataTable.onEventUnhighlightRow);
-            this.myDataTable.subscribe("rowClickEvent",     matrixOpts.rowClickHandler);
-
-            // Programmatically select the first row immediately
-            this.myDataTable.selectRow(this.myDataTable.getTrEl(0));
-
-            // Programmatically bring focus to the instance so arrow selection works immediately
-            this.myDataTable.focus();
-
-            // Custom code to parse the raw server data for Paginator values and page links and sort UI
-            this.myDataSource.doBeforeCallback = function(oRequest, oRawResponse, oParsedResponse) {
-                var oSelf           = MyMatrix;
-                var oDataTable      = oSelf.myDataTable;
-                var oRawResponse    = oRawResponse.parseJSON();
-                var recordsReturned = YAHOO.util.DataSource.parseNumber(oRawResponse.recordsReturned);
-                var page            = YAHOO.util.DataSource.parseNumber(oRawResponse.page);
-                var pageSize        = YAHOO.util.DataSource.parseNumber(oRawResponse.pageSize);
-                var totalRecords    = YAHOO.util.DataSource.parseNumber(oRawResponse.totalRecords);
-                var sort            = oRawResponse.sort;
-                var dir             = oRawResponse.dir;
-                
-                var startIndex      = (page -1) * pageSize;
-                var endIndex        = startIndex + recordsReturned;
-
-                // update paginator with new values
-                oSelf.myPaginator.current_page       = page;
-                oSelf.myPaginator.entries_per_page   = pageSize;
-                               
-                // Update the links UI
-                YAHOO.util.Dom.get("prevLink").innerHTML = (startIndex == 0) ? "" :
-                        "<a href=\"#previous\" alt=\"Show previous items\">&#171;&nbsp;Prev</a>" ;
-                YAHOO.util.Dom.get("nextLink").innerHTML = (endIndex >= totalRecords) ? "" :
-                        "<a href=\"#next\" alt=\"Show next items\">Next&nbsp;&#187;</a>";
-                YAHOO.util.Dom.get("startIndex").innerHTML = startIndex + 1;
-                YAHOO.util.Dom.get("endIndex").innerHTML   = endIndex;
-                YAHOO.util.Dom.get("ofTotal").innerHTML    = " of " + totalRecords;
-
-                // Update the config sortedBy with new values
-                var newSortedBy = {
-                    key: sort,
-                    dir: dir
-                }
-                oDataTable.set("sortedBy", newSortedBy);
-
-                return oParsedResponse;
-            };
-
-            // Hook up custom pagination
-            this.getPage = function(nPage, nResults) {
-                // If a new value is not passed in
-                // use the old value
-                if(!YAHOO.lang.isValue(nResults)) {
-                    nResults = this.myPaginator.entries_per_page;
-                }
-                // Invalid value
-                if(!YAHOO.lang.isValue(nPage)) {
-                    return;
-                }
-                if (nPage < 1) {
-                    nPage = 1;
-                }
-
-                var oSortedBy = this.myDataTable.get("sortedBy");
-                var newBookmark = "_page=" + nPage + "&_page_size=" + nResults +
-                        "&_sort=" + oSortedBy.key + "&_dir=" + oSortedBy.dir ;                        
-                this.myDataSource.sendRequest(newBookmark, 
-                        this.myDataTable.onDataReturnInitializeTable, this.myDataTable);
-            };
-            this.getPreviousPage = function(e) {
-                YAHOO.util.Event.stopEvent(e);
-                // Already at first page
-                if(this.myPaginator.current_page == 1) {
-                    return;
-                }
-                this.getPage(this.myPaginator.current_page - 1);
-            };
-            this.getNextPage = function(e) {
-                YAHOO.util.Event.stopEvent(e);
-                
-                var paginator   = this.myPaginator;
-                var page        = paginator.current_page;
-                var lastPage    = paginator.last_page;
-                                                
-                // Already at last page
-                if(page >= lastPage) {
-                    return;
-                }
-                this.getPage(page + 1);
-            };
-            YAHOO.util.Event.addListener(YAHOO.util.Dom.get("prevLink"), "click", this.getPreviousPage, this, true);
-            YAHOO.util.Event.addListener(YAHOO.util.Dom.get("nextLink"), "click", this.getNextPage, this, true);
-
-            // Override function for custom sorting
-            this.myDataTable.sortColumn = function(oColumn) {
-                // Which direction
-                var sDir = "asc";
-                // Already sorted?
-                if(oColumn.key === this.get("sortedBy").key) {
-                    sDir = (this.get("sortedBy").dir === "asc") ? "desc" : "asc";
-                }
-
-                var oPag = this.get("paginator");
-                var newBookmark = "&_sort=" + oColumn.key + "&_dir=" + sDir + "&_page_size=" + oPag.rowsThisPage + "&_page=1";
-                this.getDataSource().sendRequest(newBookmark, this.onDataReturnInitializeTable, this); 
-            };      
-      }
   };
   
   return MyMatrix;
+  
+};
+
+/*
+=head2 related_records_matrix( opts )
+
+Creates and renders Datatable object for records related to an object. Called from
+the show_relationships.tt template for 'has_related()' objects.
+
+=cut
+*/
+YAHOO.rdgc.related_records_matrix = function( opts ) {
+
+    // create new arrays so we can optionally add remove button
+    // and not affect original object.
+    var myColumnDefs = [];
+    var myFields     = [];
+    var i;
+    for (i=0; i < opts.colDefs.length; i++) {
+        myColumnDefs[i] = opts.colDefs[i];
+    }
+    for (i=0; i < opts.fields.length; i++) {
+        myFields[i] = opts.fields[i];
+    }
+    
+    if (opts.add_remove_button) {
+        myColumnDefs.push(
+            {
+                key:"_remove", 
+                label:"", 
+                title:"click to remove", // TODO doesn't work
+                sortable:false
+             }); 
+        myFields.push("_remove");
+    }
+
+    // create handler for rowclick. delete a M2M or goto related record.
+    var rowClickHandler;
+    if ( opts.m2m ) {
+      rowClickHandler = function(oArgs) {
+        // get pk value for this row
+        // 'this' is DataTable object
+        YAHOO.util.Event.stopEvent(oArgs.event);
+        var target      = oArgs.target;
+        var vtarget     = YAHOO.util.Event.getTarget(oArgs.event);
+        var record      = this.getRecord(target);
+        var column      = this.getColumn(vtarget);
+        var pk          = record.getData(opts.pk);
+        var oDataTable  = this;
+        
+        // remove this row from relationship
+        if (column.key == '_remove') {
+            if (confirm('Are you sure?')) {
+                // make ajax call to remove relationship
+                YAHOO.util.Connect.asyncRequest(
+                'POST',
+                opts.rm_m2m_url + pk,
+                {
+                    success: function (o) {
+                        if (o.responseText == 'Ok') {
+                        
+                        // we must catch the err here because of a bug in the paginator
+                        // that throws exception when there are no rows left in the table.
+                        // e.g., we start with 3 rows and then delete them all. on the last
+                        // delete, when deleteRow() is called the paginator croaks with
+                        // an error about .getPageRecords() failing. That method is called
+                        // via a rowUpdate event listener.
+                            try {
+                                oDataTable.deleteRow(target);  // visibly remove  
+                            }
+                            catch(err) {
+                                /*
+                                if (console) {
+                                    console.debug(err);
+                                }
+                                */
+                            }
+                            oDataTable.render();  // sometimes DOM does not update otherwise
+                            YAHOO.rdgc.decorateRemoveCells();
+                            
+                        } else {
+                            alert(o.responseText);
+                        }
+                    },
+                    failure: function (o) {
+                        YAHOO.rdgc.handleXHRFailure(o);
+                    }
+                }
+                );
+            }
+        }
+        else if (opts.no_follow) {
+            // do nothing
+        
+        }
+        // redirect to detail screen
+        else {
+            var newurl      = opts.info_url + '/' + pk + '/' + opts.row_url_method;
+            window.location.href = newurl;
+        }
+      };
+    }
+    else if (opts.no_follow) {
+    
+      rowClickHandler = function(oArgs) {
+        // do nothing.
+      };
+    
+    }
+    else {
+      rowClickHandler = function(oArgs) {
+        // get pk value for this row
+        // 'this' is DataTable object
+        //alert("caught row click for this " + this);
+        YAHOO.util.Event.stopEvent(oArgs.event);
+        var target      = oArgs.target;
+        var vtarget     = YAHOO.util.Event.getTarget(oArgs.event);
+        var record      = this.getRecord(target);
+        var column      = this.getColumn(vtarget);
+        var pk          = record.getData(opts.pk);            
+        var newurl      = opts.info_url + '/' + pk + '/' + opts.row_url_method;
+        window.location.href = newurl;   
+      };
+    }
+    
+    var Matrix = YAHOO.rdgc.create_results_matrix(
+    {
+        colDefs:    myColumnDefs,
+        fields:     myFields,
+        url:        opts.url,  
+        anchor:     opts.anchor,
+        pageSize:   opts.pageSize,
+        pagerId:    opts.pagerId,
+        pk:         opts.pk,
+        totalPages: opts.totalPages,
+        totalResults: opts.totalResults,
+        divId:      opts.divId,
+        rowClickHandler: rowClickHandler
+    }
+    );
+
+    YAHOO.rdgc.decorateRemoveCells();    
+    Matrix.opts = opts;
+
+    return Matrix;
+}
+
+YAHOO.rdgc.decorateRemoveCells = function() {
+    // add helpful title to all _remove divs
+    // and 'hover' class for css
+    var removeCells = YAHOO.util.Dom.getElementsByClassName('yui-dt-col-_remove');
+    var i;
+    for(i=0; i<removeCells.length; i++) {
+        removeCells[i].setAttribute('title', 'click to remove associated record');
+        YAHOO.util.Event.addListener(removeCells[i], 'mouseover', function(ev) {
+            if(!YAHOO.util.Dom.addClass(YAHOO.util.Event.getTarget(ev), 'hover')) {
+                //alert("failed to add hover");
+            }
+        });
+        YAHOO.util.Event.addListener(removeCells[i], 'mouseout', function(ev) {
+            if(!YAHOO.util.Dom.removeClass(YAHOO.util.Event.getTarget(ev), 'hover')) {
+                //alert("failed to remove hover");
+            }
+        });
+    }
+}
+
+// method to generate a query string for the DataSource.  
+// Also used as the state indicator for the History Manager
+YAHOO.rdgc.generateStateString = function (start,key,dir,psize) {
+    return  "&_page_size="  +   psize   + 
+            "&_offset="     +   start   +
+            "&_sort="       +   key     +
+            "&_dir="        +   dir;
+};
+
+// method to extract the key values from the state string
+YAHOO.rdgc.parseStateString = function (state) {
+    return {
+        results    : /\b_page_size=(\d+)/.test(state)   ? parseInt(RegExp.$1) : 20,
+        startIndex : /\b_offset=(\d+)/.test(state)      ? parseInt(RegExp.$1) : 0,
+        sort       : /\b_sort=(\w+)/.test(state)        ? RegExp.$1 : 'id',
+        dir        : /\b_dir=([\w\-]+)/.test(state)     ? RegExp.$1 : 'asc'
+    }
+};
+
+YAHOO.rdgc.handleHistoryNavigation = function (state, myMatrix) {
+    // Create a payload to pass through the DataSource request to the
+    // handler
+    
+    YAHOO.rdgc.log("historyNavigation state");
+    YAHOO.rdgc.log(state);
+    YAHOO.rdgc.log(myMatrix);
+    
+    var parsed = YAHOO.rdgc.parseStateString(state);
+    var oPayload = {
+        startIndex : parsed.startIndex,
+        pagination : {
+            recordOffset : parsed.startIndex
+        },
+        sorting : {
+            key : parsed.sort,
+            dir : parsed.dir
+        }
+    };
+
+    // Use the DataTable's baked in server-side pagination handler
+    myMatrix.myDataSource.sendRequest(state,{
+            success  : myMatrix.myDataTable.onDataReturnSetRecords,
+            failure  : myMatrix.myDataTable.onDataReturnSetRecords,
+            scope    : myMatrix.myDataTable,
+            argument : oPayload
+    });
+};
+
+/* 2.5.0 matrix 
+   taken nearly verbatim from:
+   http://developer.yahoo.com/yui/examples/datatable/dt_server_pag_sort_clean.html
+ */
+YAHOO.rdgc.create_results_matrix = function( matrixOpts ) {
+
+    YAHOO.rdgc.matrix_state = {
+        results:    matrixOpts.pageSize,
+        startIndex: 0,
+        sort:       matrixOpts.pk,
+        dir:        "asc"
+    };
+  
+    if (!YAHOO.rdgc.historyList) {
+        YAHOO.rdgc.historyList = [];
+    }
+  
+    var myMatrix = {};
+    
+    var History = YAHOO.util.History;
+        
+    var myDataSource,
+        myDataTable,
+        myPaginator;
+    
+    YAHOO.rdgc.log("MyMatrix called");
+    YAHOO.rdgc.log(matrixOpts);
+        
+    // function used to intercept pagination requests
+    var handlePagination = function (state,datatable) {
+        var sortedBy  = datatable.get('sortedBy');
+
+        var newState = YAHOO.rdgc.generateStateString(
+                            state.recordOffset,
+                            sortedBy.key,
+                            sortedBy.dir,
+                            state.rowsPerPage
+                        );
+        
+        YAHOO.rdgc.matrix_state = YAHOO.rdgc.parseStateString(newState);
+
+        History.navigate(matrixOpts.anchor,newState);
+    };
+
+    // function used to intercept sorting requests
+    var handleSorting = function (oColumn) {
+        // Which direction
+        var sDir = "asc";
+
+        // Already sorted?
+        if(oColumn.key === this.get("sortedBy").key) {
+            sDir = (this.get("sortedBy").dir === "asc") ?
+                    "desc" : "asc";
+        }
+
+        var newState = YAHOO.rdgc.generateStateString(
+                            0, oColumn.key, sDir, matrixOpts.pageSize);
+                            
+        YAHOO.rdgc.matrix_state = YAHOO.rdgc.parseStateString(newState);
+
+        History.navigate(matrixOpts.anchor, newState);
+    };
+
+
+    var doBeforeLoadData = function (oRequest, oResponse, oPayload) {
+        oPayload = oPayload || {};
+        if (!YAHOO.lang.isNumber(oPayload.startIndex)) {
+            oPayload.startIndex = this.get('paginator').getStartIndex();
+        }
+
+        return true;
+    };
+
+    var initialState = History.getBookmarkedState(matrixOpts.anchor) 
+                        || YAHOO.rdgc.generateStateString(0,matrixOpts.pk,'asc',matrixOpts.pageSize);
+        
+    History.register(matrixOpts.anchor, initialState, YAHOO.rdgc.handleHistoryNavigation, myMatrix);
+
+    YAHOO.rdgc.historyList.push(
+      function() {
+      
+        YAHOO.rdgc.log("onReady for History " + matrixOpts.anchor);
+        
+        // Pull the state from the History Manager, or default from the
+        // initial state.  Parse the state string into an object literal.
+        var initialRequest = History.getCurrentState(matrixOpts.anchor) ||
+                             matrixOpts.initialState || initialState,
+            state          = YAHOO.rdgc.parseStateString(initialRequest);
+
+        // Create the DataSource
+        myDataSource = new YAHOO.util.DataSource(matrixOpts.url);
+        myDataSource.responseType = YAHOO.util.DataSource.TYPE_JSON;
+        myDataSource.responseSchema = {
+            resultsList:    "records",
+            totalRecords:   "totalRecords",
+            fields:         matrixOpts.fields
+        };
+        
+        YAHOO.rdgc.log("this = ", this);
+        
+        // Column definitions
+        var myColumnDefs = matrixOpts.colDefs;
+
+        // Create the DataTable configuration and Paginator using the state
+        // information we pulled from the History Manager
+        myPaginator = new YAHOO.widget.Paginator({
+            rowsPerPage : state.results,
+            totalRecords: matrixOpts.totalResults,
+            pageLinks:    5,
+            recordOffset :      state.startIndex,
+            containers :        [matrixOpts.pagerId],
+            firstPageLinkLabel: '|&#171;',
+            lastPageLinkLabel:  '&#187;|',
+            previousPageLinkLabel: '&#171;',
+            nextPageLinkLabel:  '&#187;',
+            alwaysVisible       : false,  // do not show if less than 1 page
+            template : 
+                "{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} <div class='pg-bar'></div>"
+        });
+
+        var myConfig = {
+            paginator : myPaginator,
+            paginationEventHandler : handlePagination,
+            sortedBy : {
+                key : state.sort,
+                dir : state.dir
+            },
+            initialRequest : initialRequest
+        };
+
+        // Instantiate DataTable
+        myDataTable = new YAHOO.widget.DataTable(
+            matrixOpts.divId, // The dom element to contain the DataTable
+            myColumnDefs,        // What columns will display
+            myDataSource,   // The DataSource for our records
+            myConfig             // The configuration for *this* instantiation
+        );
+        
+        // remember these for callbacks
+        myMatrix.myPaginator = myPaginator;
+        myMatrix.myDataSource = myDataSource;
+        myMatrix.myDataTable = myDataTable;
+
+        // Listen to header link clicks to sort the column
+        myDataTable.subscribe('theadCellClickEvent', myDataTable.onEventSortColumn);
+
+        // Override the DataTable's sortColumn method with our intercept handler
+        myDataTable.sortColumn = handleSorting;
+        
+        // Override the doBeforeLoadData method to make sure we initialize the
+        // DataTable's RecordSet from the proper starting index
+        myDataTable.doBeforeLoadData = doBeforeLoadData;
+        
+        // Enables single-mode row selection
+        myDataTable.set("selectionMode","single");
+        
+        // make each row click-able with action defined by caller.
+        // Subscribe to events for row selection
+        if(!matrixOpts.no_follow) {
+            myDataTable.subscribe("rowMouseoverEvent", myDataTable.onEventHighlightRow);
+            myDataTable.subscribe("rowMouseoutEvent",  myDataTable.onEventUnhighlightRow);
+        }
+        myDataTable.subscribe("rowClickEvent",     matrixOpts.rowClickHandler);
+
+        // Programmatically select the first row immediately
+        myDataTable.selectRow(myDataTable.getTrEl(0));
+                
+        // Programmatically bring focus to the instance so arrow selection works immediately
+        myDataTable.focus();
+        
+        // set event listeners on paginator page nums to create hover effect
+        YAHOO.rdgc.hover_class_on_mousemove(matrixOpts.pagerId);
+
+        // set up autocomplete filter
+        var buildQueryString = function (state, datatable) {
+            var offset = YAHOO.rdgc.matrix_state.startIndex;
+            var page_size = YAHOO.rdgc.matrix_state.results;
+            if (state) {
+                offset      = state.pagination.recordOffset;
+                page_size   = state.pagination.rowsPerPage;
+            }
+            return YAHOO.rdgc.generateStateString(
+                offset,
+                YAHOO.rdgc.matrix_state.sort,
+                YAHOO.rdgc.matrix_state.dir,
+                page_size
+                );
+        };
+    
+        if (matrixOpts.colFilter && YAHOO.util.Dom.get('results_ac')) {
+            YAHOO.util.Dom.get('results_ac').value='';  // always reset to avoid sticky browsers
+            var getFilter = function(query) {
+                var req = buildQueryString(0);
+                // OR together all the filterable fields
+                if (query.length) {
+                    var i;
+                    for(i=0; i<matrixOpts.colFilter.length; i++) {
+                        req += '&' + matrixOpts.colFilter[i] + '=' + query;
+                    }
+                    req += '&_op=OR&_fuzzy=1';
+                }
+                myDataSource.sendRequest(req, myDataTable.onDataReturnInitializeTable, myDataTable);
+            };
+            
+            // allow for empty query to return all records
+            var checkFilterKey = function(acself, keycode) {
+                if (!YAHOO.util.Dom.get('results_ac').value.length) {
+                    getFilter('');
+                }
+            };
+            
+            var ACF = new YAHOO.widget.DS_JSFunction(getFilter);
+            ACF.minQueryLength = 0;
+            ACF.maxCacheEntries = 0; // always send request
+            var ACFilter = new YAHOO.widget.AutoComplete("results_ac", "results_ac_hidden", ACF);
+            ACFilter.textboxKeyEvent.subscribe(checkFilterKey);
+        }
+        
+      } // end function()
+    
+    );  // end .push
+  
+    return myMatrix;
+  
+};
+
+YAHOO.rdgc.init_histories = function () {
+
+    YAHOO.rdgc.log("HistoryList init " + YAHOO.rdgc.historyList.length);
+
+    // set an onReady function that calls each function in our list
+    YAHOO.util.History.onReady(function() {
+    
+        var i;
+        for(i=0; i < YAHOO.rdgc.historyList.length; i++) {
+            var func = YAHOO.rdgc.historyList[i];
+            func();
+        }
+        
+    });
+    
+    YAHOO.util.History.initialize("yui_history_field", "yui_history_iframe");
 }
 
 /* utils */
 YAHOO.rdgc.cancel_action = function (ev) { return false }
+
+YAHOO.rdgc.hover_class_on_mousemove = function(id) {
+    YAHOO.util.Event.addListener(id, 'mouseover', function(ev) {
+    
+        var elTarget = YAHOO.util.Event.getTarget(ev);
+        while(elTarget.id != id) {
+            if (elTarget.nodeName.toUpperCase() != "A") {
+                elTarget = elTarget.parentNode;
+                break;
+            }
+            if (    YAHOO.util.Dom.hasClass(elTarget, 'yui-pg-page')
+                ||  YAHOO.util.Dom.hasClass(elTarget, 'yui-pg-first')
+                ||  YAHOO.util.Dom.hasClass(elTarget, 'yui-pg-previous')
+                ||  YAHOO.util.Dom.hasClass(elTarget, 'yui-pg-next')
+                ||  YAHOO.util.Dom.hasClass(elTarget, 'yui-pg-last')
+            ) {
+                YAHOO.util.Dom.addClass(elTarget, 'hover');
+                break;
+            }
+            else {
+                elTarget = elTarget.parentNode;
+            }
+        }
+    
+    });
+    YAHOO.util.Event.addListener(id, 'mouseout', function(ev) {
+    
+        var elTarget = YAHOO.util.Event.getTarget(ev);
+        while(elTarget.id != id) {
+            if (elTarget.nodeName.toUpperCase() != "A") {
+                elTarget = elTarget.parentNode;
+                break;
+            }
+            if (YAHOO.util.Dom.hasClass(elTarget, 'hover')) {
+                YAHOO.util.Dom.removeClass(elTarget, 'hover');
+                break;
+            }
+            else {
+                elTarget = elTarget.parentNode;
+            }
+        }
+    
+    });
+}
          
 YAHOO.rdgc.disable_button = function (button) {
     button.oldValue     = button.value;
@@ -1469,12 +1007,26 @@ YAHOO.rdgc.enable_button = function (button) {
     }
 }
 
-YAHOO.rdgc.enable_all_buttons = function() {
-            var buttons = YAHOO.util.Dom.getElementsByClassName('addRowButton');
-            for (var i = 0; i < buttons.length; i++) {
-                YAHOO.rdgc.enable_button(buttons[i]);
-            }
-        }
+YAHOO.rdgc.enable_all_buttons = function(id) {
+    if (!id)
+        id = 'addRowButton';
+        
+    var buttons = YAHOO.util.Dom.getElementsByClassName(id);
+    for (var i = 0; i < buttons.length; i++) {
+        YAHOO.rdgc.enable_button(buttons[i]);
+    }
+}
+
+YAHOO.rdgc.disable_all_buttons = function(id) {
+    if (!id)
+        id = 'addRowButton';
+        
+    var buttons = YAHOO.util.Dom.getElementsByClassName(id);
+    for (var i = 0; i < buttons.length; i++) {
+        YAHOO.rdgc.disable_button(buttons[i]);
+    }
+}
+
 
 
 /* draggable, resizeable panel via YUI. This is for adding rows to a related-row
@@ -1563,6 +1115,12 @@ YAHOO.extend(YAHOO.widget.ResizePanel, YAHOO.widget.Panel, {
                     nBodyHeight = 0;
                 }
                 oBody.style.height =  nBodyHeight + "px";
+                
+                // allow for additional callbacks
+                if (me.myLayout) {
+                    YAHOO.msi.log("resize layout");
+                    me.myLayout.resize({ height: nNewHeight, width: nNewWidth });
+                }
             };
         
         }
@@ -1602,9 +1160,30 @@ YAHOO.extend(YAHOO.widget.ResizePanel, YAHOO.widget.Panel, {
     }
 });
 
+YAHOO.rdgc.toggle_class_hidden = function(id) {
+    var DOM     = YAHOO.util.Dom;
+    var element = DOM.get(id);
+    if (DOM.hasClass(element, "hidden")) {
+        DOM.removeClass(element, "hidden");
+    }
+    else {
+        DOM.addClass(element, "hidden");
+    }
+}
+
+YAHOO.rdgc.toggle_link = function(id_to_toggle, link_id) {
+    YAHOO.rdgc.toggle_class_hidden(id_to_toggle);
+    YAHOO.rdgc.toggle_class_hidden(link_id);
+    return false;   // so the click is not followed on a href
+}
+
 
 __css__
 /* Rose::DBx::Garden::Catalyst default css */
+
+.xls_link {
+    margin: 8px 0;
+}
 
 span.error, div.error
 {
@@ -1613,12 +1192,19 @@ span.error, div.error
     padding: 8px;
 }
 
+.red { color: red }
+
 /* overall page layout */
 
 body 
 {
     text-align:left;
-    font-size: 100%;
+    /* font-size: 100%; */
+}
+
+.hidden
+{
+    display: none;
 }
 
 #main
@@ -1626,9 +1212,104 @@ body
     margin: 1em;
 }
 
+#help
+{
+    margin: 2em;
+    width: 600px;
+}
+
+#help div
+{
+    margin-bottom: 8px;
+}
+
+#help h2,
+#help h3
+{
+    font-weight: bold;
+    margin-top: 1em;
+    margin-bottom: 4px;
+}
+
+#help h2
+{
+    font-size: 130%;
+}
+
+#help h3
+{
+    font-size: 120%;
+}
+
+#help ul
+{
+    margin: 1em;
+}
+
+#help ul li
+{
+    list-style-type: disc; /* default */
+    list-style-position: inside;
+}
+
+#help dl
+{
+    margin: 1em;
+}
+
+#help dl dt
+{
+    margin-left: 0.25em;
+    margin-bottom: 0.25em;
+    font-weight: bold;
+    font-size: 110%;
+}
+
+#help dl dd
+{
+    margin-left: 1em;
+    margin-bottom: 1em;
+}
+
 #results
 {
     margin: 1em;
+}
+
+#head
+{
+    margin: 0;
+    border: 1px solid #7a0019;
+    background-color: #ffcc33;
+}
+
+#welcome
+{
+    float: left;
+    padding: 6px 12px 6px 12px;
+    font-size: 140%;
+    font-weight: bold;
+}
+
+#quicksearch {
+    float: right;
+    margin: 2px;
+    padding: 4px 16px 4px 16px;
+    background-color: #7a0019;
+}
+
+#quicksearch input[type=text],
+.autocomplete
+{
+    font-family: Monaco, 'Andale Mono', fixed, monospace;
+    padding: 2px;
+    position: static;
+}
+
+.title
+{
+    font-weight: bold;
+    font-size: 110%;
 }
 
 .center
@@ -1636,9 +1317,40 @@ body
     text-align: center;
 }
 
+/* UMN colors for links in forms */
+#main a,
+.rdgc a
+{
+    color: #7A0019;
+    text-decoration: none;
+}
+
+a.box
+{
+    color: #7A0019;
+    text-decoration: none;
+    padding: 4px;
+    background-color: #fff;
+    border: 1px solid #7A0019;
+}
+
+#main a:hover,
+a.box:hover,
+.rdgc a:hover
+{
+    background-color: #ffcc33;
+}
+
 div.related_object_matrix
 {
     margin: 1em;
+}
+
+div.related_object_matrix caption
+{
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 4px;
 }
 
 #rdgc_footer
@@ -1651,10 +1363,19 @@ div.related_object_matrix
 }
 
 /* results matrix remove 'button' */
-.yui-dt-col-_remove {
+div.yui-dt-col-_remove.yui-dt-liner
+{
+    text-align: center;
+    color: #7A0019;
     font-size: 90%;
-    color: red;
-    font-weight: bold;
+    cursor:pointer;
+}
+
+/* div.yui-dt-col-_remove:hover, */
+div.yui-dt-col-_remove.hover
+{
+    color: #000;
+    text-decoration: underline;
 }
 
 /* Resize Panel CSS */
@@ -1719,6 +1440,18 @@ div.related_object_matrix
      cursor: se-resize;
 
 }
+
+#panel_msg, .message {
+    font-weight: bold;
+    color: green;
+}
+
+#yui_history_iframe {
+    position:absolute;
+    top:0; left:0;
+    width:1px; height:1px;
+    visibility:hidden;
+}
  
 .temp_hiliter {
     background-color: #fff3b3;
@@ -1729,11 +1462,12 @@ div.related_object_matrix
 
 form.rdgc
 {
-    clear:both;
+    /* clear:both; */
     margin: 1em;
 }
 
-form.rdgc fieldset
+form.rdgc fieldset,
+div.rdgc
 {
     margin-top: 1em;
     padding: 1em;
@@ -1767,7 +1501,8 @@ form.rdgc div.wide span.input
     
 form.rdgc label, 
 form.rdgc input,
-form.rdgc span.input
+form.rdgc span.input,
+form.rdgc div.autocomplete_wrapper
 {
     display: block;
     float: left;
@@ -1776,7 +1511,11 @@ form.rdgc span.input
 }
 
 /* FF seems to like this, on mac anyway */
-form.rdgc input
+form.rdgc input.varchar,
+form.rdgc input.integer,
+form.rdgc input.datetime,
+form.rdgc input.date,
+form.rdgc span.input.varchar
 {
     margin-top: -1px;
 }
@@ -1805,6 +1544,13 @@ text-align: right;
 width: 170px;
 }
 
+form.rdgc fieldset fieldset label
+{
+    /* padding-right: 8px; */
+    text-align: right;
+    width: 140px;
+}
+
 form.rdgc fieldset.narrow label
 {
 padding-right: 20px;				
@@ -1819,6 +1565,12 @@ text-align: right;
 width: 200px;
 }
 
+form.rdgc fieldset.narrow label.left
+{
+padding-right: 20px;				
+text-align: left;
+width: 95px;
+}
 
 form.rdgc br {
 clear: left;
@@ -1922,6 +1674,309 @@ form.rdgc textarea
 {
     font-family: Monaco, 'Andale Mono', fixed, monospace;
     padding: 2px;
+}
+
+/* YUI datatable overrides */
+.yui-skin-sam .yui-dt-table caption {
+    /* padding-bottom:1em; */
+    padding: 0.5em;
+    text-align:left;
+    border: 1px solid #444;
+    font-weight: bold;
+
+}
+
+
+.yui-skin-sam .yui-pg-container,
+.yui-skin-sam .yui-dt-paginator {
+    display:block;
+    margin:6px 0;
+    white-space:nowrap;
+    padding: 4px;
+}
+
+.yui-skin-sam .yui-pg-first,
+.yui-skin-sam .yui-pg-last,
+.yui-skin-sam .yui-pg-current-page,
+.yui-skin-sam .yui-dt-first,
+.yui-skin-sam .yui-dt-paginator .yui-dt-last,
+.yui-skin-sam .yui-dt-paginator .yui-dt-selected {
+    padding:2px 6px;
+}
+.yui-skin-sam a.yui-pg-first,
+.yui-skin-sam a.yui-pg-previous,
+.yui-skin-sam a.yui-pg-next,
+.yui-skin-sam a.yui-pg-last,
+.yui-skin-sam a.yui-pg-page,
+.yui-skin-sam .yui-dt-paginator a.yui-dt-first,
+.yui-skin-sam .yui-dt-paginator a.yui-dt-last {
+    text-decoration:none;
+}
+.yui-skin-sam .yui-dt-paginator .yui-dt-previous,
+.yui-skin-sam .yui-dt-paginator .yui-dt-next {
+    display:none;
+}
+.yui-skin-sam a.yui-pg-page,
+.yui-skin-sam a.yui-dt-page {
+    border:1px solid #7a0019;
+    padding:2px 6px;
+    text-decoration:none;
+    background-color:#fff;
+}
+.yui-skin-sam .yui-pg-current-page,
+.yui-skin-sam .yui-dt-selected {
+    border:1px solid #000;
+    /* background-color:#B2D2FF; */  /* YUI blue */
+    background-color: #eee;
+}
+.yui-skin-sam .yui-pg-pages {
+    margin-left:1ex;
+    margin-right:1ex;
+}
+.yui-skin-sam .yui-pg-page {
+    margin-right:1px;
+    margin-left:1px;
+}
+.yui-skin-sam .yui-pg-first,
+.yui-skin-sam .yui-pg-previous {
+    margin-right:3px;
+    border: 1px solid #aaa;
+    padding: 2px 4px 2px 4px;
+    background-color: #fff;
+}
+.yui-skin-sam .yui-pg-next,
+.yui-skin-sam .yui-pg-last {
+    margin-left:3px;
+    border: 1px solid #aaa;
+    padding: 2px 4px 2px 4px;
+    background-color: #fff;
+}
+
+.yui-skin-sam a.yui-pg-first,
+.yui-skin-sam a.yui-pg-previous,
+.yui-skin-sam a.yui-pg-next,
+.yui-skin-sam a.yui-pg-last
+{
+    border: 1px solid #7a0019;
+    
+}
+
+.yui-skin-sam .yui-pg-current,
+.yui-skin-sam .yui-pg-rpp-options {
+    margin-right:1em;
+    margin-left:1em;
+    border: 1px solid #ccc;
+    padding: 4px;
+    background-color: #fff;
+}
+
+div.links {
+    margin: 1em;
+    padding: 1em;
+    border: 1px solid #aaa;
+    background-color: #eee;
+
+}
+
+div.links a {
+    color: #7a0019;
+    text-decoration:none;
+    border: 1px solid #7a0019;
+    background-color: #fff;
+    padding: 4px;
+}
+
+div.links a:hover {
+    background-color: #ffcc33;
+}
+
+div.links li {
+    display: inline;
+    list-style-type: none;
+}
+
+/* pagination */
+.yui-skin-sam .pager_wrapper
+{
+    border: 1px solid #aaa;
+    background-color: #fff;
+    padding: 4px;
+    margin-left: 1em;
+    /* width: 80%; */
+}
+
+.yui-skin-sam .panel.pager_wrapper,
+.yui-skin-sam .results.pager_wrapper
+{
+    margin-left: 0;
+}
+
+/* .yui-skin-sam .panel.pager_wrapper
+{
+    height: 36px;
+}
+ */
+.yui-skin-sam .results.pager_wrapper
+{
+    margin-left: -1px;
+    margin-bottom: 1em;
+}
+
+.pager_wrapper input.autocomplete
+{
+    position:static;
+}
+
+.yui-skin-sam .pager a
+{
+    color: #7a0019;
+}
+
+.panel.pager_wrapper .pager,
+.results.pager_wrapper .pager
+{
+    float: left;
+}
+
+#panel_autocomplete,
+#results_autocomplete
+{
+    border: 1px solid #aaa;
+    background-color: #7a0019;
+    padding: 4px;
+    color: #fff;
+    float: right;
+    margin:4px 0;
+}
+
+.pager_wrapper br
+{
+    clear: both;
+}
+
+.rdgc .pager a.hover,
+.rdgc .pager a:hover,
+.yui-skin-sam a.yui-pg-page.hover,
+.yui-skin-sam a.yui-pg-page:hover,
+.yui-skin-sam a.yui-pg-first.hover,
+.yui-skin-sam a.yui-pg-first:hover,
+.yui-skin-sam a.yui-pg-previous.hover,
+.yui-skin-sam a.yui-pg-previous:hover,
+.yui-skin-sam a.yui-pg-next.hover,
+.yui-skin-sam a.yui-pg-next:hover,
+.yui-skin-sam a.yui-pg-last.hover,
+.yui-skin-sam a.yui-pg-last:hover
+{
+    background-color: #ffcc33;
+    color: #7a0019;
+    border: 1px solid #7a0019;
+}
+
+/* undo rdgc effects */
+#panel_autocomplete label
+{
+    font-weight:normal;
+    text-align:left;
+    width: auto;
+    padding-right: 0;
+    float:none;
+    margin-top: 0;
+    margin-bottom: 0;
+    display: inline;
+
+}
+
+#panel_autocomplete input
+{
+    font-weight:normal;
+    text-align:left;
+    width: auto;
+    padding-right: 0;
+    float:none;
+    margin-top: 0;
+    margin-bottom: 0;
+    display: inline;
+}
+
+
+/* sortable column headers should be colorful */
+.yui-skin-sam .yui-dt th div a
+{
+    color: #7A0019;
+}
+
+.yui-skin-sam .yui-dt th div:hover
+{
+    color: #7A0019;
+    background-color: #ffcc33;
+}
+
+/* popup panels */
+#addListPanel.yui-panel .hd,
+#links_panel_container .hd,
+#daily_schedule_panel .hd
+{
+    background: #7a0019;
+    text-align:center;
+    border: 1px solid #ffcc33;
+    color: #fff;
+    font-size: 110%;
+}
+
+#addListPanel .bd,
+#links_panel_container .bd,
+#daily_schedule_panel .bd
+{
+    border: 1px solid #7a0019;
+}
+
+/* main menu */
+.yui-skin-sam .bd {
+    background-color: #7a0019;
+    font-size: 105%;
+}
+
+.yui-skin-sam .yuimenubarlabel,
+.yui-skin-sam .yuimenubaritemlabel,
+.yui-skin-sam .yuimenubarnav 
+{
+    color: #fff;
+}
+
+/* highlighting */
+.yui-skin-sam th.yui-dt-highlighted,
+.yui-skin-sam th.yui-dt-highlighted a {
+    /* background-color:#B2D2FF; */ /* med blue hover */
+    background-color: #ffcc33;
+    color: #7a0019;
+    cursor:pointer;
+}
+.yui-skin-sam tr.yui-dt-highlighted,
+.yui-skin-sam tr.yui-dt-highlighted td.yui-dt-asc,
+.yui-skin-sam tr.yui-dt-highlighted td.yui-dt-desc,
+.yui-skin-sam tr.yui-dt-even td.yui-dt-highlighted,
+.yui-skin-sam tr.yui-dt-odd td.yui-dt-highlighted {
+    cursor:pointer;
+    /* background-color:#B2D2FF; */ /* med blue hover */
+    background-color: #ffcc33;
+    color: #7a0019;
+}
+
+.yui-skin-sam .yuimenubarnav .yuimenubaritemlabel-selected,
+.yui-skin-sam .yuimenubarnav .yuimenuitemlabel-selected
+{
+    background-color: #ffcc33;
+    color: #7a0019;
+    cursor:pointer;
+}
+
+.yui-skin-sam .yui-dt-body { 
+    cursor:pointer; /* when rows are selectable */
+}
+
+/* autocomplete field a little narrow than parent so scrollbars align */
+.yui-skin-sam .yui-ac-content {
+    width:95%;
 }
 
 __json_js__

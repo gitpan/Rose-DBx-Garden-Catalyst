@@ -1,0 +1,143 @@
+[%# generic RHTMLO form generator. %]
+[%
+# specific a specific field order with the 'fields.order' array.
+# the 'readonly' for values that should not be edited
+# but should be displayed (as with creation timestamps, etc)
+#
+# TODO some default JS validation would be nice here.
+
+# DEFAULT didn't work as expected here.
+UNLESS fields.size;
+    fields = { order = [], readonly = {} };
+END;
+UNLESS fields.order.size;
+    fields.order    = form.field_names_by_rank;
+END;
+
+DEFAULT oid = object.primary_key_uri_escaped;
+
+USE autoformat( all = 1 );  # for textarea readonly 
+
+%]
+
+[% IF (error || form.error) %]
+<div class="error">[% error || form.error %]</div>
+[% END %]
+
+[%  FOREACH fname = fields.order;
+
+        field = form.field( fname );
+        
+        # set DateTime format
+        IF field.isa('Rose::HTML::Form::Field::DateTime');
+            IF (field.internal_value.epoch.defined);
+                CALL field.output_format( yui.datetime_format );
+            END;
+        END;
+
+        # read-only fields
+        IF (fields.readonly.exists( fname ));
+            field.xhtml_label;
+
+            "<span class='input'>";
+            IF field.isa('Rose::HTML::Form::Field::TextArea');
+                "<pre>"; autoformat( field.output_value ); "</pre>";
+            ELSIF field.isa('Rose::HTML::Form::Field::DateTime');
+              IF (field.internal_value.epoch.defined);
+                field.output_value _ '';
+              END;
+            ELSIF field.isa('Rose::HTMLx::Form::Field::Boolean');
+                field.output_value == '1' ? 'true' : 'false';
+            ELSIF field.isa('Rose::HTML::Form::Field::PopUpMenu');
+                field.value_label;
+            ELSE;
+                form.field_value( fname );
+            END;
+            
+            PROCESS related_field_info;
+            
+            "</span>";
+            
+            # optionally pass the readonly value through hidden
+            # as when creating an object with a FK that is readonly.
+            # this only works with values that are not objects themselves.
+            IF (fields.readonly.item( fname ) > 1) %]
+              <input type="hidden" name="[% fname %]" value="[% field.output_value %]" />
+            [% END;
+            
+            "<br />\n";
+        
+        # autocomplete magic
+        ELSIF (field.can('autocomplete'));
+            u = field.url;
+            USE url = url( u.0, u.1 );
+            PROCESS rdgc/autocomplete_field.tt
+                input = {
+                    label  = field.xhtml_label
+                    url    = u.0
+                    params = url.match('\?(.+)$').0.replace('&amp;','&')
+                    id     = 'ac_' _ fname      # fname will be used as hidden field name
+                    fname  = fname
+                    value  = form.meta.foreign_field_value( fname, object )
+                    param  = u.1
+                    limit  = field.limit
+                };
+            "<br />\n";
+
+        # checkboxes
+        ELSIF (field.can('xhtml_checkbox'));
+            field.xhtml_label;
+            field.xhtml_checkbox;
+            "<br />\n";
+      
+        # hidden fields
+        ELSIF (field.isa('Rose::HTML::Form::Field::Hidden'));
+            IF show_hidden_fields;
+                t = form.hidden_to_text_field(field);
+                t.xhtml_label;
+                t.xhtml;
+                "<br />\n";
+            ELSE;
+                field.xhtml;
+            END;
+                  
+                               
+        # default
+        ELSE;
+                        
+            field.xhtml_label;
+            field.xhtml;
+            PROCESS related_field_info;
+            "<br />\n";
+            
+        END;    # IF/ELSE        
+    END;  # FOREACH
+        
+%]
+
+[% BLOCK related_field_info %]
+[%# in theory this is never called in edit mode if form.interrelate_fields is used %]
+[%
+ IF (     form.meta.show_related_fields 
+      &&  field.internal_value.length
+      &&  form.meta.is_related_field( fname ) 
+      &&  fname != c.controller.primary_key );
+  related       = form.meta.related_field( fname );
+  foreign_field = form.meta.show_related_field_using( related.class, fname );
+  foreign_key   = related.foreign_col;
+  method        = related.method;
+  USE myurl     = url( related.url _ '/search', 
+                         { $foreign_key = field.internal_value });
+
+  IF (foreign_field);
+    # show related record value literally
+    myval = object.$method.$foreign_field;
+    "&nbsp;<a class='box' href='$myurl'>$myval</a>";
+  ELSE;
+     # show link to related record
+    "&nbsp;<a class='box' href='$myurl'>Related record</a>";
+  END;
+  
+ END;
+%]
+[% END %]

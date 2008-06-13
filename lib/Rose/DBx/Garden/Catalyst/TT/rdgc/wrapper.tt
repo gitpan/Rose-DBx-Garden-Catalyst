@@ -1,0 +1,8 @@
+[% UNLESS no_wrapper;
+    PROCESS rdgc/header.tt;
+    content;
+    PROCESS rdgc/footer.tt;
+   ELSE;
+    content;
+   END;
+%]

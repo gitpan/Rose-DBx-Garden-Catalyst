@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Rose-DBx-Garden-Catalyst
-version:             0.08
+version:             0.09_01
 abstract:            plant Roses in your Catalyst garden
 license:             ~
 author:              
@@ -10,20 +10,20 @@ distribution_type:   module
 requires:     
     Catalyst:                      5.7
     Catalyst::View::TT:            0
-    CatalystX::CRUD:               0.24
-    CatalystX::CRUD::Controller::RHTMLO: 0.1
-    CatalystX::CRUD::Model::RDBO:  0.1
+    CatalystX::CRUD:               0.27
+    CatalystX::CRUD::Controller::RHTMLO: 0.12
+    CatalystX::CRUD::Model::RDBO:  0.12
+    CatalystX::CRUD::View::Excel:  0.05
+    Class::C3:                     0
     Data::Dump:                    0
-    JSON:                          2
     JSON::XS:                      2
     Path::Class:                   0
-    Rose::DBx::Garden:             0.11
+    Rose::DBx::Garden:             0.14
     Scalar::Util:                  0
     Template:                      0
     Test::More:                    0
     Tree::Simple:                  0
     Tree::Simple::Visitor::ToNestedHash: 0
-    YAML::Syck:                    0
 meta-spec:
     url:     http://module-build.sourceforge.net/META-spec-v1.3.html
     version: 1.3

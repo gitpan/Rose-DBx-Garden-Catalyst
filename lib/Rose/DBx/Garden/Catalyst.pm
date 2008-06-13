@@ -6,17 +6,16 @@ use base qw( Rose::DBx::Garden );
 use Carp;
 use Path::Class;
 use Data::Dump qw( dump );
-use YAML::Syck ();
 use Tree::Simple;
 use Tree::Simple::Visitor::ToNestedHash;
 
 use Rose::Object::MakeMethods::Generic (
-    'scalar'                => 'catalyst_prefix',
-    'scalar --get_set_init' => 'template_class',
-    boolean                 => [ 'tt' => { default => 1 }, ]
+    'scalar --get_set_init' =>
+        [qw( template_class catalyst_prefix controller_prefix )],
+    boolean => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.08';
+our $VERSION = '0.09_01';
 
 =head1 NAME
 
@@ -71,11 +70,23 @@ Only new or overridden methods are documented here.
 =head2 init_template_class
 
 If the B<tt> config option is true, use the template_class() class
-for the raw snippets of presentation code. Default is Rose::DBx::Garden::Catalyst::Templates.
+for the raw snippets of presentation code. 
+Default is Rose::DBx::Garden::Catalyst::Templates.
 
 =cut
 
 sub init_template_class {'Rose::DBx::Garden::Catalyst::Templates'}
+
+=head2 init_controller_prefix
+
+The namespace where Catalyst Controllers are created. Will also be lowercased
+and serve as the URI path namespace for all RDGC actions.
+
+Default: RDGC
+
+=cut
+
+sub init_controller_prefix {'RDGC'}
 
 =head2 init_base_code
 
@@ -87,53 +98,7 @@ used in Catalyst.
 sub init_base_code {
     return <<EOF;
 
-use base qw( Rose::DB::Object::Helpers );
-use Scalar::Util qw( blessed );
-
-# primary key value generator
-# right now there is no support for multi-value PKs
-# but this method would support the URI-encoding of such
-# values when/if they are supported in CatalystX::...::RHTMLO
-sub primary_key_uri_escaped {
-    my \$self = shift;
-    my \$pk =
-        join( ';',
-            map { 
-                  my \$v = \$self->\$_;
-                  \$v = '' unless defined \$v;
-                  \$v =~ s/;/ sprintf( "%%%02X", ';' ) /eg;
-                  \$v; 
-                }
-                \$self->meta->primary_key_column_names );
-    return \$pk;
-}
-
-sub flatten {
-    my \$self = shift;
-    my \%flat = \%{ \$self->column_value_pairs };
-    for ( keys \%flat ) {
-        if ( blessed( \$flat{\$_} ) and \$flat{\$_}->isa('DateTime') ) {
-            \$flat{\$_} = \$flat{\$_}->epoch;
-        }
-    }
-    for my \$rel ( \$self->meta->relationships ) {
-        my \$method = \$rel->name;
-        my \$val    = \$self->\$method;
-        next unless defined \$val;
-        if ( ref \$val eq 'ARRAY' ) {
-            \$flat{\$method} 
-                = [ map { scalar( \$_->column_values_as_yaml ) } \@\$val ];
-        }
-        elsif ( blessed(\$val) and \$val->isa('Rose::DB::Object') ) {
-            \$flat{\$method} = \$val->flatten;
-        }
-        else {
-            \$flat{\$method} = \$val->flatten;
-        }
-    }
-    return \\\%flat;
-}
-
+use base qw( Rose::DBx::Garden::Catalyst::Object );
 
 EOF
 }
@@ -145,228 +110,18 @@ Custom base Form code to implement features that template will require.
 =cut
 
 sub init_base_form_class_code {
+    my $self              = shift;
+    my $controller_prefix = $self->controller_prefix;
     return <<EOF;
 use Carp;
-use Data::Dump qw( dump );
+use base qw( Rose::DBx::Garden::Catalyst::Form );
 
-=head2 show_related_fields
-
-Boolean indicating whether the View should provide links to related
-tables based on RDBO foreign_keys() and relationships().
-
-Default is true.
-
-=cut
-
-sub show_related_fields { 1 }
-
-=head2 show_related_values
-
-Boolean indicating whether the YUI datatable matrix should
-show related unique field values rather than the foreign keys
-to which they refer.
-
-Default is true.
-
-=cut
-
-sub show_related_values { 1 }
-
-=head2 show_relationships
-
-Boolean indicating whether the View should provide links to related
-tables based on RDBO relationship method names that do not have
-corresponding field names.
-
-=cut
-
-sub show_relationships { 1 }
-
-=head2 object_class
-
-Should return the name of the object class that this form class
-represents.
-
-=cut
-
-sub object_class { croak "must set object_class in Form subclass" }    
-
-=head2 relationships
-
-Returns arrayref of object_class() foreign_keys() and relationships().
-These are guaranteed to be unique with regard to name, 
-so any relationships that are merely wrappers that delegate 
-to a foreign_key object are ignored.
-
-=cut
-
-sub relationships {
+sub init_metadata {
     my \$self = shift;
-    my \%seen;
-    my \@fks = \$self->object_class->meta->foreign_keys;
-    my \@rel = \$self->object_class->meta->relationships;
-    my \@return;
-    for my \$r (\@fks, \@rel) {
-        next if \$seen{\$r->name}++;
-        push(\@return, \$r);
-    }
-    return \\\@return;
-}
-
-=head2 show_related_field_using( I<foreign_object_class>, I<field_name> )
-
-Returns the name of a field to use for display from I<foreign_object_class>
-based on a relationship using I<field_name>.
-
-This magic is best explained via example. Say you have a 'person' object
-that is related to a 'user' object. The relationship is defined in the 'user'
-object as:
-
- person_id => person.id
- 
-where the id of the 'person' object is a related (foreign key) to the person_id
-value of the user object. In a form display for the 'user', you might want to display the name
-of the 'person' rather than the id, so show_related_field_using() will look
-up the first unique text field in the I<foreign_object_class> 
-(in this case, the 'person' class) and return that field.
-
- my \$field = \$form->show_related_field_using( 'RDBO::Person', 'person_id' )
- 
-And because it's a method, you can override show_related_field_using() to perform
-different logic than simply looking up the first unique text key in the I<foreign_object_class>.
-
-If no matching field is found, returns undef.
-
-=cut
-
-sub show_related_field_using {
-    my \$self   = shift;
-    my \$fclass = shift or croak "foreign_object_class required";
-    my \$field  = shift or croak "field_name required";
-    
-    my \@ukeys = \$fclass->meta->unique_keys_column_names;
-    if (\@ukeys) {
-        for my \$k (\@ukeys) {
-            if (   scalar(\@\$k) == 1 
-                && \$fclass->meta->column(\$k->[0])->type =~ m/char/) {
-                return \$k->[0];
-            }
-        }
-    }
-    return undef;
-}
-
-=head2 related_field( I<field_name> )
-
-If I<field_name> represents a foreign key or other relationship to a different
-object class (and hence a different form class), then related_field() will
-return a hashref with relationship summary information.
-
-If I<field_name> does not represent a related class, returns undef.
-
-=cut 
-
-sub related_field {
-    my \$self         = shift;
-    my \$field_name   = shift or croak "field_name required";
-    my \$c            = shift || \$self->app;
-    
-    # interrogate related classes
-    for my \$rel ( \@{ \$self->relationships } ) {
-    
-        my \%info;
-    
-        if ( \$rel->can('column_map') ) {
-            my \$colmap         = \$rel->column_map;
-            next unless exists \$colmap->{\$field_name};
-            \$info{foreign_col} = \$colmap->{\$field_name};
-        }
-        else {
-            warn "\$field_name is ManyToMany\\n";
-        }
-
-        return \$self->relationship_info( \$rel, \\\%info, \$c );
-    }
-    
-    return undef;
-}
-
-=head2 relationship_info( I<relationship_object> [, I<info_hashref> ] )
-
-Returns a hashref of relationship summary information for I<relationship_object>.
-If I<info_hashref> is used, updates and returns that hashref.
-
-=cut
-
-sub relationship_info {
-    my \$self = shift;
-    my \$rel  = shift or croak "relationship object required";
-    my \$info = shift || {};
-    my \$c    = shift || \$self->app;
-    unless(\$c) {
-        Carp::confess("no Catalyst context object in form->app");
-    }
-    
-    \$info->{type}      = \$rel->type;
-    \$info->{method}    = \$rel->name;
-    
-    my \$url_method;
-    
-    if ( \$info->{type} eq 'many to many' ) {
-        my \$map_to         = \$rel->map_to;
-        my \$foreign_rel    = \$rel->map_class->meta->relationship( \$map_to );
-        \$info->{map_class} = \$rel->map_class;
-        \$info->{class}     = \$foreign_rel->class;
-        \$info->{table}     = \$info->{class}->meta->table;
-        \$info->{schema}    = \$info->{class}->meta->schema;
-        \$info->{map_to}    = \$map_to;
-        \$info->{map_from}  = \$rel->map_from;
-    }
-    else {
-        \$info->{class}  = \$rel->class;
-        \$info->{table}  = \$info->{class}->meta->table;
-        \$info->{schema} = \$info->{class}->meta->schema;
-        \$info->{cmap}   = \$rel->column_map;
-    }
-    
-    # create URL
-    my \$prefix             = \$self->garden_prefix;
-    my \$controller_name    = \$info->{class};
-    \$controller_name       =~ s/^\${prefix}:://;
-    \$info->{controller}    = \$c->controller( 'RDGC::' . \$controller_name );
-    \$info->{url}           = \$c->uri_for('/rdgc', 
-                                split(m/::/, lc( \$controller_name )));
-    
-    return \$info;     
-}
-
-sub hidden_to_text_field {
-    my \$self   = shift;
-    my \$hidden = shift or croak "need Hidden Field object";
-    unless( ref \$hidden && \$hidden->isa('Rose::HTML::Form::Field::Hidden')) {
-        croak "\$hidden is not a Rose::HTML::Form::Field::Hidden object";
-    }
-    my \@attr = (size => 12);
-    for my \$attr (qw( name label class required )) {
-        push(\@attr, \$attr, \$hidden->\$attr);
-    }
-    return Rose::HTML::Form::Field::Text->new(\@attr);    
-}
-
-=head2 field_names_by_rank
-
-Returns array ref of field names sorted numerically by their rank attribute.
-The rank is set in Rose::DBx::Garden according to the ordinal position
-of the corresponding db column.
-
-=cut
-
-sub field_names_by_rank {
-    my \$self = shift;
-    my \@new  = map  { \$_->name }
-                sort { \$a->rank <=> \$b->rank }
-                \$self->fields;
-    return [ \@new ];
+    return Rose::DBx::Garden::Catalyst::Form::Metadata->new( 
+        form                => \$self,
+        controller_prefix   => '$controller_prefix',
+    );
 }
 
 EOF
@@ -379,6 +134,19 @@ Defaults to 'MyApp'.
 =cut
 
 sub init_catalyst_prefix {'MyApp'}
+
+=head2 base_tt_path
+
+Returns controller_prefix() transformed to a file path.
+
+=cut
+
+sub base_tt_path {
+    my $self = shift;
+    my $cp   = $self->controller_prefix;
+    $cp =~ s,::,/,g;
+    return lc($cp);
+}
 
 =head2 plant( I<path/to/my/catapp> )
 
@@ -430,18 +198,24 @@ sub make_catalyst {
     # we only care about Form classes because those do not
     # represent map classes, which should be invisible to normal usage.
 
-    my $catprefix  = $self->catalyst_prefix;
-    my $gardprefix = $self->garden_prefix;
+    my $catprefix         = $self->catalyst_prefix;
+    my $gardprefix        = $self->garden_prefix;
+    my $controller_prefix = $self->controller_prefix;
     my @controllers;
     my %tree;
 
     # parent controller
-    $self->_make_file( join( '::', $catprefix, 'Controller', 'RDGC' ),
+    $self->_make_file(
+        join( '::', $catprefix, 'Controller', $controller_prefix ),
         $self->_make_parent_controller );
 
     # our TT View
     $self->_make_file( join( '::', $catprefix, 'View', 'RDGC' ),
         $self->_make_view );
+
+    # our Excel export View
+    $self->_make_file( join( '::', $catprefix, 'View', 'Excel' ),
+        $self->_make_excel_view );
 
     # base Controller and Model classes
     $self->_make_file(
@@ -456,8 +230,10 @@ sub make_catalyst {
         my $bare = $rdbo;
         $bare =~ s/^${gardprefix}:://;
         my $controller_class
-            = join( '::', $catprefix, 'Controller', 'RDGC', $bare );
-        my $model_class = join( '::', $catprefix, 'Model', 'RDGC', $bare );
+            = join( '::', $catprefix, 'Controller', $controller_prefix,
+            $bare );
+        my $model_class
+            = join( '::', $catprefix, 'Model', $controller_prefix, $bare );
         $self->_make_file(
             $controller_class,
             $self->_make_controller(
@@ -480,7 +256,9 @@ sub make_catalyst {
         }
     }
 
-    my @menu_items = ( { href => '/rdgc', txt => 'Home' } );
+    my $base_url = $self->base_tt_path;
+
+    my @menu_items = ( { href => '/' . $base_url, txt => 'Home' } );
     for my $branch ( sort keys %tree ) {
         my $visitor = Tree::Simple::Visitor::ToNestedHash->new();
         my $subtree = $tree{$branch};
@@ -488,7 +266,7 @@ sub make_catalyst {
         my $m        = $visitor->getResults();
         my $children = $m->[0];
         my %item;
-        $item{href} = join( '/', '', 'rdgc', lc($branch) );
+        $item{href} = join( '/', '', $base_url, lc($branch) );
         $item{txt} = $branch;
         my $sub = $self->_make_menu_items( $item{href}, $children );
         $item{items} = $sub if $sub;
@@ -507,19 +285,24 @@ sub make_catalyst {
         croak "$tt_dir does not exist -- cannot create template files";
     }
 
+    # we need 1 dir, possibly 2
+    my $rdgc_tt_dir = dir( $tt_dir, 'rdgc' );
+    my $base_tt_dir = dir( $tt_dir, $base_url );
+    $rdgc_tt_dir->mkpath(1);
+    $base_tt_dir->mkpath(1);
+
+    # write a default welcome page
+    $self->_write_tt_file( file( $base_tt_dir, 'default.tt' )->stringify,
+        $self->_tt_default_page );
+
     # core .tt files
     my $tt = $self->_get_tt;
 
-    for my $file ( sort grep { !m/^(css|js|json_js)$/ } keys %$tt ) {
-        $self->_write_tt_file(
-            file( $tt_dir, 'rdgc', $file . '.tt' )->stringify,
-            $tt->{$file} );
-    }
-
     # write the menu now that we know the dir exists
-    YAML::Syck::DumpFile(
-        file( $tt_dir, 'rdgc', 'schema_menu.yml' )->stringify,
-        { id => 'schema_menu', items => \@menu_items }
+    $self->_write_tt_file(
+        file( $rdgc_tt_dir, 'schema_menu.tt' )->stringify,
+        '[% SET menu = '
+            . dump( { id => 'schema_menu', items => \@menu_items } ) . '%]'
     );
 
     # css and js go in static
@@ -591,6 +374,12 @@ sub _write_tt_file {
     File::Slurp::write_file( $tt, $buf );    # Garden.pm uses File::Slurp
 }
 
+sub _tt_default_page {
+    return <<EOF;
+[% PROCESS rdgc/default.tt %]
+EOF
+}
+
 sub _tt_stub_search {
     return <<EOF;
 [% PROCESS rdgc/search.tt %]
@@ -639,11 +428,13 @@ sub _tmpl_path_from_controller {
 }
 
 sub _make_parent_controller {
-    my $self      = shift;
-    my $cat_class = $self->catalyst_prefix;
+    my $self              = shift;
+    my $cat_class         = $self->catalyst_prefix;
+    my $controller_prefix = $self->controller_prefix;
+    my $base_path         = $self->base_tt_path;
 
     return <<EOF;
-package ${cat_class}::Controller::RDGC;
+package ${cat_class}::Controller::${controller_prefix};
 use strict;
 use warnings;
 use base qw( Catalyst::Controller );
@@ -654,9 +445,17 @@ sub auto : Private {
     1;
 }
 
-sub default : Private {
+sub default : Path {
     my (\$self, \$c) = \@_;
-    \$c->stash->{template} = 'rdgc/default.tt';
+    \$c->stash->{template} = '$base_path/default.tt';
+}
+
+sub end : ActionClass('RenderView') {
+    my ( \$self, \$c ) = \@_;
+    if ( \$c->req->param('as_xls') ) {
+        \$c->stash->{current_view} = 'Excel';
+        \$c->stash->{template}     = 'rdgc/list.xls.tt';
+    }
 }
 
 1;
@@ -697,7 +496,7 @@ __PACKAGE__->config(
     init_object             => '${object_name}_from_form',
     default_template        => '$tmpl',
     model_name              => '$model_class',
-    primary_key             => '$pk',   # TODO will need to adjust if multiple
+    primary_key             => '$pk',
     view_on_single_result   => 1,
     page_size               => 50,
     garden_class            => '$base_rdbo_class',
@@ -717,142 +516,7 @@ sub _make_base_rhtmlo_controller {
 package ${catalyst_prefix}::Base::Controller::RHTMLO;
 use strict;
 use warnings;
-use base qw( CatalystX::CRUD::Controller::RHTMLO );
-use Carp;
-use Data::Dump qw( dump );
-
-my \$json_mime = 'application/json; charset=utf-8';
-
-sub default : Private {
-    my (\$self, \$c) = \@_;
-    \$c->response->redirect(\$c->uri_for('count'));
-}
-
-# default is all field names,
-# but you can override in a subclass to return a subset of field names.
-# see root/rdgc/yui_datatable_setup.tt
-sub yui_datatable_field_names {
-    my (\$self) = \@_;
-    return \$self->form->field_names;
-}
-
-# YUI DataTable support
-sub yui_datatable : Local {
-    my (\$self, \$c, \@arg) = \@_;
-    \$c->stash->{view_on_single_result} = 0;
-    \$self->do_search(\$c, \@arg);
-    \$c->stash->{template} = 'rdgc/yui_datatable.tt';
-    \$c->response->content_type(\$json_mime);
-}
-
-# YUI datatable count stats via json
-sub yui_datatable_count : Local {
-    my (\$self, \$c, \@arg) = \@_;
-    \$c->stash->{fetch_no_results} = 1;
-    \$c->stash->{view_on_single_result} = 0;
-    \$self->do_search(\$c, \@arg);
-    \$c->stash->{template} = 'rdgc/yui_datatable_count.tt';
-    \$c->response->content_type(\$json_mime);
-}
-
-#
-# NOTE that the rm_m2m and add_m2m urls assume single-column PKs
-#
-
-# rm_m2m for many2many **ONLY** -- will delete related row if you use it with
-# a one2many or many2one relationship
-sub rm_m2m : PathPart Chained('fetch') Args(3) {
-    my ( \$self, \$c, \$rel, \$foreign_pk, \$foreign_pk_value ) = \@_;
-    return if \$self->has_errors(\$c);
-    unless ( \$self->can_write(\$c) ) {
-        \$self->throw_error('Permission denied');
-        return;
-    }
-    
-    my \$obj = \$c->stash->{object};
-        
-    # re-set every related object except the one we want removed
-    my \@save;
-    for my \$o (\$obj->\$rel) {
-    
-        my \$v = \$o->\$foreign_pk;
-        next if \$v eq \$foreign_pk_value;
-        push \@save, \$o;
-    
-    }
-        
-    \$obj->\$rel( \\\@save );
-                 
-    # save changes
-    eval { \$self->save_obj(\$c, \$obj) };
-        
-    unless (\$\@) {
-        \$c->response->body('Ok');
-    }
-    else {
-        \$c->response->body("rm_m2m \$rel \$foreign_pk_value failed");
-    }
-}
-
-sub add_m2m : PathPart Chained('fetch') Args(3) {
-    my ( \$self, \$c, \$rel, \$foreign_pk, \$foreign_pk_value ) = \@_;
-    return if \$self->has_errors(\$c);
-    unless ( \$self->can_write(\$c) ) {
-        \$self->throw_error('Permission denied');
-        return;
-    }
-    
-    my \$obj = \$c->stash->{object};
-    my \$method = 'add_' . \$rel;
-    \$obj->\$method( { \$foreign_pk => \$foreign_pk_value } );
-                 
-    # save changes
-    \$self->save_obj(\$c, \$obj);
-    
-    # pull the newly associated record out and json-ify it for return
-    my \$record;
-    grep { \$record = \$_ if \$_->\$foreign_pk eq \$foreign_pk_value } \@{ \$obj->\$rel };
-    \$c->stash->{object} = \$record;
-    \$c->stash->{template} = 'rdgc/jsonify.tt';
-    \$c->response->content_type(\$json_mime);
-    
-}
-
-sub precommit {
-    my (\$self, \$c, \$obj) = \@_;
-    
-    # make empty ints NULL
-    # this is a RHTMLO bug supposedly fixed as of 0.552
-    # but it doesn't hurt to double-check
-    for my \$col (\$obj->meta->columns) {
-        my \$name = \$col->name;
-        if (\$col->type =~ m/int/) {
-            if (defined \$obj->\$name && !length(\$obj->\$name)) {
-                \$c->log->warn("precommit: \$name fixed to undef instead of empty string");
-                \$obj->\$name(undef);
-            }
-        }
-    }
-    
-    1;
-}
-
-# override to allow for returning json results
-sub postcommit {
-    my (\$self, \$c, \$obj) = \@_;
-        
-    if (   exists \$c->req->params->{return}
-        && \$c->req->params->{return} eq 'json') {
-        
-        \$c->stash->{object}   = \$obj;  # is this necessary?
-        \$c->stash->{template} = 'rdgc/jsonify.tt';
-        \$c->response->content_type(\$json_mime);
-        
-    }
-    else {
-        \$self->NEXT::postcommit(\$c, \$obj);
-    }
-}
+use base qw( Rose::DBx::Garden::Catalyst::Controller );
 
 1;
 
@@ -901,81 +565,61 @@ sub _make_view {
 package ${cat_class}::View::RDGC;
 use strict;
 use warnings;
-use base qw( Catalyst::View::TT );
-use Carp;
-use JSON 2.00 ();
-use YAML::Syck ();
-use Data::Dump qw( dump );
+use base qw( Rose::DBx::Garden::Catalyst::View );
 
-__PACKAGE__->config(
-    TEMPLATE_EXTENSION  => '.tt',
-    PRE_PROCESS         => 'rdgc/tt_config.tt',
+1;
+
+EOF
+}
+
+sub _make_excel_view {
+    my ($self) = @_;
+    my $cat_class = $self->catalyst_prefix;
+
+    return <<EOF;
+package ${cat_class}::View::Excel;
+use strict;
+use warnings;
+use base qw( CatalystX::CRUD::View::Excel );
+use Rose::DBx::Garden::Catalyst::YUI;
+
+sub get_template_params {
+    my ( \$self, \$c ) = \@_;
+    my \$cvar = \$self->config->{CATALYST_VAR} || 'c';
+    return (
+        \$cvar => \$c,
+        \%{ \$c->stash },
+        yui => Rose::DBx::Garden::Catalyst::YUI->new,
     );
-
-my \$JSON = JSON->new->utf8;
-\$JSON->convert_blessed(1);
-\$JSON->allow_blessed(1);
-
-# mysql serial fields are rendered with Math::BigInt objects in RDBO
-sub Math::BigInt::TO_JSON {
-    my (\$self) = \@_;
-    return \$self . '';
-}
-
-# virt method replacements for Dumper plugin
-sub dump_data {
-    my \$s = shift;
-    my \$d = dump(\$s);
-    \$d =~ s/&/&amp;/g;
-    \$d =~ s/</&lt;/g;
-    \$d =~ s/>/&gt;/g;
-    \$d =~ s,\\n,<br/>\\n,g;
-    return "<pre>\$d</pre>";
-}
-
-# read yaml file
-sub read_yaml {
-    my \$self = shift;
-    my \$file = shift or croak "need YAML file";
-    return YAML::Syck::LoadFile(\$file);
-}
-
-
-sub as_json {
-    my \$v = shift;
-    my \$j = \$JSON->encode(\$v);
-    return \$j;
-}
-
-sub true  { JSON::XS::true  }
-sub false { JSON::XS::false }
-
-# dump_data virt method instead of Dumper plugin
-\$Template::Stash::HASH_OPS->{dump_data}   = \\&dump_data;
-\$Template::Stash::LIST_OPS->{dump_data}   = \\&dump_data;
-\$Template::Stash::SCALAR_OPS->{dump_data} = \\&dump_data;
-
-
-# as_json virt method dumps value as a JSON string
-\$Template::Stash::HASH_OPS->{as_json}   = \\&as_json;
-\$Template::Stash::LIST_OPS->{as_json}   = \\&as_json;
-\$Template::Stash::SCALAR_OPS->{as_json} = \\&as_json;
-
-my \$DateTime_Format  = '\%Y-\%m-\%d \%H:\%M:\%S';
-
-{
-    # nasty hack really. there ought to be a class method to set the default
-    # DateTime stringification output. instead, we cheat in an Evil Way.
-    # http://www.mail-archive.com/rose-db-object\@lists.sourceforge.net/msg01295.html
-    use DateTime;
-    no warnings 'redefine';
-    sub DateTime::_stringify { shift->strftime(\$DateTime_Format) }
 }
 
 1;
 
 EOF
 }
+
+# cribbed from Catalyst::Helper get_file()
+sub _get_tt {
+    my $self           = shift;
+    my $template_class = $self->template_class;
+    eval "require $template_class";
+    croak $@ if $@;
+
+    local $/;
+    my $data = eval "package $template_class; <DATA>";
+    my @files = split /^__(.+)__\r?\n/m, $data;
+    shift @files;
+    my %tt;
+    while (@files) {
+        my ( $name, $content ) = splice @files, 0, 2;
+        $tt{$name} = $content;
+    }
+    return \%tt;
+}
+
+1;
+
+__END__
 
 =head1 AUTHOR
 
@@ -993,12 +637,6 @@ Should be straightforward since the Garden nows puts column-type as xhtml class 
 
 Need a way to reliably test the JS.
 
-=item related column display
-
-Optionally show unique column from related tables via FKs when showing
-relationships. I.e., do not show the literal FK value but a unique value from
-the table which the FK references.
-
 =back
 
 =head1 BUGS
@@ -1014,7 +652,8 @@ There is no known workaround at the moment.
 
 =item javascript required
 
-The TT templates generated depend heavily on the YUI toolkit C<< http://developer.yahoo.com/yui/ >>.
+The TT templates generated depend heavily on the YUI toolkit 
+C<< http://developer.yahoo.com/yui/ >>.
 Graceful degredation is not implemented as yet.
 
 =back
@@ -1060,31 +699,10 @@ sponsored the development of this software.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2007 by the Regents of the University of Minnesota.
+Copyright 2008 by the Regents of the University of Minnesota.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
 
 =cut
-
-# cribbed from Catalyst::Helper get_file()
-sub _get_tt {
-    my $self           = shift;
-    my $template_class = $self->template_class;
-    eval "require $template_class";
-    croak $@ if $@;
-
-    local $/;
-    my $data = eval "package $template_class; <DATA>";
-    my @files = split /^__(.+)__\r?\n/m, $data;
-    shift @files;
-    my %tt;
-    while (@files) {
-        my ( $name, $content ) = splice @files, 0, 2;
-        $tt{$name} = $content;
-    }
-    return \%tt;
-}
-
-1;    # End of Rose::DBx::Garden::Catalyst

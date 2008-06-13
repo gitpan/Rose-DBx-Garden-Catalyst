@@ -1,0 +1,17 @@
+[%# JSON format autocomplete response %]
+[%  dataset = [];
+    pk = c.controller.primary_key;
+    no_wrapper = 1;
+    count = 0;
+    FOR r = results;
+        dataset.push({ $ac_field => r.$ac_method, pk => r.$pk });
+        count = count + 1;
+    END;
+    resultset = {
+        'ResultSet' => {
+            'Count'  => count,
+            'Result' => dataset
+        }
+    };
+    resultset.as_json;
+%]
