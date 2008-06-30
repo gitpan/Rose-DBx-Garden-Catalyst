@@ -5,7 +5,7 @@ use Carp;
 use Data::Dump qw( dump );
 use base qw( Rose::Object );
 
-our $VERSION = '0.09_01';
+our $VERSION = '0.09_02';
 
 use Rose::Object::MakeMethods::Generic (
     'scalar' => [
@@ -14,7 +14,8 @@ use Rose::Object::MakeMethods::Generic (
     ],
     'scalar --get_set_init' => [
         'object_class',      'labels',
-        'controller_prefix', 'yui_datatable_methods'
+        'controller_prefix', 'yui_datatable_methods',
+        'field_uris',        'related_field_map',
     ],
     'boolean --get_set' => [
         'show_related_values' => { default => 1 },
@@ -110,6 +111,47 @@ sub init_object_class {
     $form_class =~ s/::Form$//;
     return $form_class;
 }
+
+=head2 init_field_uris
+
+Should return a hashref of field names to a value that will be passed
+to Catalyst's uri_for() method. Used primarily for per-column
+click behaviour in a YUI DataTable.
+
+=cut
+
+sub init_field_uris {
+    return {};
+}
+
+=head2 field_uri( I<field_name> )
+
+Returns the value from field_uris() for key I<field_name> if such a key exists.
+Otherwise, returns undef.
+
+=cut
+
+sub field_uri {
+    my $self = shift;
+    my $field_name = shift or croak "field_name required";
+    if ( exists $self->field_uris->{$field_name} ) {
+        return $self->field_uris->{$field_name};
+    }
+    return;
+}
+
+=head2 init_related_field_map
+
+Used by show_related_fields_using(), this method should return a hashref
+of I<field_name> to I<method_name> where I<field_name> is a field in the Form
+and I<method_name> is a method name in the foreign object_class.
+
+The default is an empty hashref, which means that show_related_fields_using()
+will take the first unique column it can find as the I<method_name>.
+
+=cut
+
+sub init_related_field_map { return {} }
 
 sub _build {
     my $self = shift;
@@ -306,15 +348,16 @@ object as:
  person_id => person.id
  
 where the id of the 'person' object is a related (foreign key) to the person_id
-value of the user object. In a form display for the 'user', you might want to display the name
-of the 'person' rather than the id, so show_related_field_using() will look
+value of the user object. In a form display for the 'user', 
+you might want to display the name of the 'person' rather than the id, 
+so show_related_field_using() will look
 up the first unique text field in the I<foreign_object_class> 
 (in this case, the 'person' class) and return that field.
 
  my $field_name = $form->show_related_field_using( 'RDBO::Person', 'person_id' )
  
-And because it's a method, you can override show_related_field_using() to perform
-different logic than simply looking up the first unique text key 
+And because it's a method, you can override show_related_field_using() 
+to perform different logic than simply looking up the first unique text key 
 in the I<foreign_object_class>.
 
 If no matching field is found, returns undef.
@@ -325,6 +368,10 @@ sub show_related_field_using {
     my $self   = shift;
     my $fclass = shift or croak "foreign_object_class required";
     my $field  = shift or croak "field_name required";
+
+    if ( exists $self->related_field_map->{$field} ) {
+        return $self->related_field_map->{$field};
+    }
 
     my @ukeys = $fclass->meta->unique_keys_column_names;
     if (@ukeys) {

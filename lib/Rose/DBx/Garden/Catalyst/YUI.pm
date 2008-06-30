@@ -8,7 +8,7 @@ use JSON::XS ();
 use Scalar::Util qw( blessed );
 use Rose::DBx::Garden::Catalyst::YUI::DataTable;
 
-our $VERSION = '0.09_01';
+our $VERSION = '0.09_02';
 
 use Rose::Object::MakeMethods::Generic (
     'scalar --get_set_init' =>

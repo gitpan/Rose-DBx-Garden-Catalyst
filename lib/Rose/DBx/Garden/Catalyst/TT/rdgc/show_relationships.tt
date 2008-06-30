@@ -1,3 +1,53 @@
+[%# doc only
+
+=pod
+
+=head1 NAME
+
+show_relationships - TT snippet for relationships
+
+=head1 REQUIRED VARIABLES
+
+The following variables are required:
+
+=head2 form
+
+The basic B<form> variable set in Controller.
+
+=head2 yui
+
+The RDGC::YUI object set in View.
+
+=head1 OPTIONAL VARIABLES
+
+The following optional variables effect how and which
+relationships are displayed:
+
+=head2 skip_relationships
+
+Hashref of method names. If a relationship method exists in the hash,
+it is skipped.
+
+=head2 alias_relationships
+
+Hashref of method name to method name. If a relationship method appears
+as a hash key, its corresponding value should be another relationship
+method name. B<alias_relationships> can be used with B<skip_relationships>
+to mask some methods or make "foo" act like "bar".
+
+=head2 associations_locked
+
+Hashref of method names. If a relationship method exists in the hash,
+no link is created for the "Create association from I<method_name>" feature.
+
+=head1 SEE ALSO
+
+rdgc/yui_related_datatable_js.tt
+
+=cut
+
+# end doc
+%]
 [%
 INSERT 'rdgc/add_row_panel.tt';
 
@@ -47,7 +97,7 @@ FOREACH rel IN form.meta.relationships;
        >Create association from [% rel_info.label || method %]</a>
     [% END %]
     [% IF (rel_info.controller.can_write(c)) %]
-     <a class="box" href="[% create_new_url %]" >New [%  rel_info.label || method %]</a>
+     <a class="box" href="[% create_new_url %]" >New [% rel_info.label || method %]</a>
     [% END %]
      <a class="box" href="[% export_as_xls_url %]">Export related records as Excel</a>
     </div>

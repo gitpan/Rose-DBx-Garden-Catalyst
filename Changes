@@ -57,7 +57,7 @@ Revision history for Rose-DBx-Garden-Catalyst
         * change all DateTime stringification to use Evil sub redefine in View rather than TT Date plugin
         * add Boolean field support to readonly feature in form.tt
 
-0.09    xxxx
+0.09_01 13 Jun 2008
         * use column as label if not defined in form
         * add support for file upload fields in form.tt
         * add support for alternate relationship labels in base Form class
@@ -69,4 +69,9 @@ Revision history for Rose-DBx-Garden-Catalyst
         * add 'New' link for each related matrix in show_relationships.tt
         * complete refactor of all .tt code to move much of it into YUI and YUI::DataTable
         * complete refactor of all generated code to move much of it into real base classes and installed .tt
+
+0.09_02 30 June 2008
+        * several small bug fixes with .tt files
+        * allow for related_field mapping at init time
+        * fix autocomplete CSS 
 

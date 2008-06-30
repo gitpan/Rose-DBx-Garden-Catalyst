@@ -71,17 +71,20 @@ USE autoformat( all = 1 );  # for textarea readonly
         ELSIF (field.can('autocomplete'));
             u = field.url;
             USE url = url( u.0, u.1 );
-            PROCESS rdgc/autocomplete_field.tt
-                input = {
-                    label  = field.xhtml_label
-                    url    = u.0
-                    params = url.match('\?(.+)$').0.replace('&amp;','&')
-                    id     = 'ac_' _ fname      # fname will be used as hidden field name
-                    fname  = fname
-                    value  = form.meta.foreign_field_value( fname, object )
-                    param  = u.1
-                    limit  = field.limit
-                };
+            SET input = {
+                    label  = field.xhtml_label,
+                    url    = u.0,
+                    params = url.match('\?(.+)$').0.replace('&amp;','&'),
+                    id     = 'ac_' _ fname,      # fname will be used as hidden field name
+                    fname  = fname,
+                    param  = u.1,
+                    limit  = field.limit,
+            };
+            # if searching, we do not have an object yet.
+            IF (object);
+                input.value  = form.meta.foreign_field_value( fname, object );
+            END;
+            PROCESS rdgc/autocomplete_field.tt;
             "<br />\n";
 
         # checkboxes
@@ -118,7 +121,8 @@ USE autoformat( all = 1 );  # for textarea readonly
 [% BLOCK related_field_info %]
 [%# in theory this is never called in edit mode if form.interrelate_fields is used %]
 [%
- IF (     form.meta.show_related_fields 
+ IF (     object
+      &&  form.meta.show_related_fields 
       &&  field.internal_value.length
       &&  form.meta.is_related_field( fname ) 
       &&  fname != c.controller.primary_key );

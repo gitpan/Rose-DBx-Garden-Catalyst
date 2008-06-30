@@ -34,7 +34,7 @@ use base qw( Rose::DB::Object::Helpers );
 
 use Rose::Class::MakeMethods::Generic ( scalar => ['debug'], );
 
-our $VERSION = '0.09_01';
+our $VERSION = '0.09_02';
 
 =head1 NAME
 

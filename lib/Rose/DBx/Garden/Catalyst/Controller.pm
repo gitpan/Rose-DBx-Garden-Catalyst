@@ -6,7 +6,7 @@ use Carp;
 use Data::Dump qw( dump );
 use Class::C3;
 
-our $VERSION = '0.09_01';
+our $VERSION = '0.09_02';
 
 __PACKAGE__->mk_accessors(qw( autocomplete_columns autocomplete_method ));
 

@@ -1,20 +1,17 @@
   <!-- YUI support -->
-  [% YUI_VERSION = '2.5.1' %]
-  [% #YUI_BASE_URL = 'http://yui.yahooapis.com' %]
-  [% YUI_BASE_URL = 'http://static.msi.umn.edu/yui'  #'http://yui.yahooapis.com' %]
   <!-- reset css -->
   <link rel="stylesheet" type="text/css" 
-        href="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/reset-fonts-grids/reset-fonts-grids.css" />
+        href="[% YUIBaseURL %]/[% YUIVersion %]/build/reset-fonts-grids/reset-fonts-grids.css" />
 
   <!-- Core + Skin CSS -->
   <link rel="stylesheet" type="text/css" 
-        href="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/assets/skins/sam/skin.css" />
+        href="[% YUIBaseURL %]/[% YUIVersion %]/build/assets/skins/sam/skin.css" />
 
   <link type="text/css" rel="stylesheet" 
-        href="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/calendar/assets/skins/sam/calendar.css" /> 
+        href="[% YUIBaseURL %]/[% YUIVersion %]/build/calendar/assets/skins/sam/calendar.css" /> 
 
   <link type="text/css" rel="stylesheet" 
-        href="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/button/assets/skins/sam/button.css" /> 
+        href="[% YUIBaseURL %]/[% YUIVersion %]/build/button/assets/skins/sam/button.css" /> 
         
   <!-- Rose Garden style -->
   <link rel="stylesheet" type="text/css" media="all"
@@ -22,27 +19,27 @@
 
 
 <!-- js -->
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/yahoo-dom-event/yahoo-dom-event.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/connection/connection-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/utilities/utilities.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/container/container-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/menu/menu-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/logger/logger-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/autocomplete/autocomplete-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/connection/connection-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/utilities/utilities.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/container/container-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/menu/menu-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/logger/logger-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/autocomplete/autocomplete-min.js"></script>
 
  <!-- important!! these next 4 must load in this exact order -->
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/datasource/datasource-beta-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/json/json-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/history/history-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/datatable/datatable-beta-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/datasource/datasource-beta-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/json/json-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/history/history-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/datatable/datatable-beta-min.js"></script>
 
 
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/dragdrop/dragdrop-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/calendar/calendar-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/resize/resize-beta-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/animation/animation-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/layout/layout-beta-min.js"></script>
-  <script type="text/javascript" src="[% YUI_BASE_URL %]/[% YUI_VERSION %]/build/button/button-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/dragdrop/dragdrop-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/calendar/calendar-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/resize/resize-beta-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/animation/animation-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/layout/layout-beta-min.js"></script>
+  <script type="text/javascript" src="[% YUIBaseURL %]/[% YUIVersion %]/build/button/button-min.js"></script>
   
 
 <!-- local js -->

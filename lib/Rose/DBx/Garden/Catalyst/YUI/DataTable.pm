@@ -7,7 +7,7 @@ use base qw( Rose::Object );
 use JSON::XS ();
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.09_01';
+our $VERSION = '0.09_02';
 
 use Rose::Object::MakeMethods::Generic (
     'scalar' => [
@@ -162,15 +162,24 @@ sub init {
 
         my $isa_field = $form->field($field_name);
 
-        # must force label object to stringify
-
         push(
             @{ $self->{columns} },
-            {   key   => $field_name,
-                label => defined($isa_field) ? $isa_field->label . ''
+            {   key => $field_name,
+
+                # must force label object to stringify
+                label => defined($isa_field)
+                ? $isa_field->label . ''
                 : ( $form->meta->labels->{$field_name} || $field_name ),
-                sortable => $isa_field ? JSON::XS::true()
+
+                sortable => $isa_field
+                ? JSON::XS::true()
                 : JSON::XS::false(),
+
+                # per-column click
+                url => $form->app->uri_for(
+                    $form->meta->field_uri($field_name)
+                ),
+
             }
         );
 

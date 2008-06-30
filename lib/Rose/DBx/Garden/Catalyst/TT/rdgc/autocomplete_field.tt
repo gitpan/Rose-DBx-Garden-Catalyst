@@ -28,7 +28,6 @@
  #[% input.id %]_auto_complete { 
     text-align:left;
     width:[% (input.csize || 30) + 1 %]em;
-    overflow: auto;
  }
 </style>
 <script type="text/javascript">

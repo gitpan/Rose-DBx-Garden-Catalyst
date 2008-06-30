@@ -1,7 +1,7 @@
 package Rose::DBx::Garden::Catalyst::Templates;
 use strict;
 
-our $VERSION = '0.09_01';
+our $VERSION = '0.09_02';
 
 =head1 NAME
 
@@ -857,10 +857,10 @@ YAHOO.rdgc.create_results_matrix = function( matrixOpts ) {
         myDataTable.subscribe("rowClickEvent",     matrixOpts.rowClickHandler);
 
         // Programmatically select the first row immediately
-        myDataTable.selectRow(myDataTable.getTrEl(0));
+        //myDataTable.selectRow(myDataTable.getTrEl(0));
                 
         // Programmatically bring focus to the instance so arrow selection works immediately
-        myDataTable.focus();
+        //myDataTable.focus();
         
         // set event listeners on paginator page nums to create hover effect
         YAHOO.rdgc.hover_class_on_mousemove(matrixOpts.pagerId);
@@ -1972,11 +1972,6 @@ div.links li {
 
 .yui-skin-sam .yui-dt-body { 
     cursor:pointer; /* when rows are selectable */
-}
-
-/* autocomplete field a little narrow than parent so scrollbars align */
-.yui-skin-sam .yui-ac-content {
-    width:95%;
 }
 
 __json_js__
