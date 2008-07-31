@@ -7,14 +7,14 @@ use base qw( Rose::Object );
 use JSON::XS ();
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.09_02';
+our $VERSION = '0.09_03';
 
 use Rose::Object::MakeMethods::Generic (
     'scalar' => [
         qw( yui results controller form
             method_name pk columns show_related_values
             col_filter col_keys url count counter
-            field_names
+            field_names sort_by
             )
     ],
 );
@@ -119,11 +119,21 @@ sub init {
     my @col_names
         = @{ $self->{field_names} || $form->meta->yui_datatable_methods };
 
+    if ( $results->isa('CatalystX::CRUD::Results')
+        and !$form->app->stash->{object} )
+    {
+
+        # no parent, so do not include columns that require it.
+        my $takes_object = $form->meta->takes_object_as_argument;
+        @col_names = grep { !exists $takes_object->{$_} } @col_names;
+    }
+
     $self->pk( $controller->primary_key );
     $self->columns( [] );
     $self->show_related_values( {} );
     $self->col_filter( [] );
     $self->col_keys( \@col_names );
+    $self->sort_by( $form->meta->default_sort_by || $self->pk );
 
     if ( $results->isa('CatalystX::CRUD::Results')
         && defined $results->query )
@@ -275,12 +285,14 @@ sub _serialize_results {
             push(
                 @data,
                 $self->yui->serialize(
-                    {   rdbo                => $r,
-                        method_name         => $method_name,
-                        field_names         => $self->col_keys,
-                        parent              => $results,
-                        c                   => $self->form->app,
+                    {   rdbo        => $r,
+                        method_name => $method_name,
+                        field_names => $self->col_keys,
+                        parent      => $self->form->app->stash->{object},
+                        c           => $self->form->app,
                         show_related_values => $self->show_related_values,
+                        takes_object_as_argument =>
+                            $self->form->meta->takes_object_as_argument,
                     }
                 )
             );
@@ -297,12 +309,14 @@ sub _serialize_results {
             push(
                 @data,
                 $self->yui->serialize(
-                    {   rdbo                => $r,
-                        method_name         => $method_name,
-                        field_names         => $self->col_keys,
-                        parent              => $results,
-                        c                   => $self->form->app,
+                    {   rdbo        => $r,
+                        method_name => $method_name,
+                        field_names => $self->col_keys,
+                        parent      => $self->form->app->stash->{object},
+                        c           => $self->form->app,
                         show_related_values => $self->show_related_values,
+                        takes_object_as_argument =>
+                            $self->form->meta->takes_object_as_argument,
                     }
                 )
             );

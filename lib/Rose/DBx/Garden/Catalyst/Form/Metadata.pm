@@ -5,7 +5,7 @@ use Carp;
 use Data::Dump qw( dump );
 use base qw( Rose::Object );
 
-our $VERSION = '0.09_02';
+our $VERSION = '0.09_03';
 
 use Rose::Object::MakeMethods::Generic (
     'scalar' => [
@@ -16,6 +16,7 @@ use Rose::Object::MakeMethods::Generic (
         'object_class',      'labels',
         'controller_prefix', 'yui_datatable_methods',
         'field_uris',        'related_field_map',
+        'default_sort_by',   'takes_object_as_argument',
     ],
     'boolean --get_set' => [
         'show_related_values' => { default => 1 },
@@ -123,6 +124,26 @@ click behaviour in a YUI DataTable.
 sub init_field_uris {
     return {};
 }
+
+=head2 init_default_sort_by
+
+Should return the name of the field to sort by in initial yui_datatable.
+
+Default is null (emptry string) which will make it default to the primary
+key.
+
+=cut
+
+sub init_default_sort_by {''}
+
+=head2 init_takes_object_as_argument
+
+Set hash ref of method names that take the parent RDBO object as a
+single argument. Used in YUI serialize().
+
+=cut
+
+sub init_takes_object_as_argument { {} }
 
 =head2 field_uri( I<field_name> )
 

@@ -8,9 +8,9 @@
     
     DEFAULT controller = c.controller();
     DEFAULT method_name = 0;
-    DEFAULT field_names = 0;
+    DEFAULT field_names = form.meta.yui_datatable_methods;
     SET no_wrapper = 1;
-    CALL yui.show_remove_button(c.req.params.item('_add_rm_button')); # buttons is global flag indicating whether user may edit.
+    CALL yui.show_remove_button(c.req.params.item('_add_rm_button')); # buttons is global flag indicating whether user may edit.    
     SET datatable  = yui.datatable(
          'results'      => results, 
          'controller'   => controller, 

@@ -1,11 +1,4 @@
-<script type="text/javascript">
-/* <![CDATA[ */
-    if (YAHOO.rdgc.historyList && YAHOO.rdgc.historyList.length > 0) {
-        YAHOO.rdgc.init_histories();    // must come after ALL History modules are registered
-    }
-/* ]]> */    
-</script>
-
+ [% PROCESS rdgc/yui_footer.tt %]
  <div id="rdgc_footer">
  Created via Rose::DBx::Garden::Catalyst
  </div>

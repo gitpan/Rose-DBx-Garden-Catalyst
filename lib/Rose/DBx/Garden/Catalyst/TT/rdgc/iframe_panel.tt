@@ -5,14 +5,11 @@
     function setup_link_panel() {
         // Instantiate a Panel from script
         YAHOO.rdgc.links.panel = 
-            new YAHOO.widget.Panel("links_panel", 
-                            {   width:"600px",
-                                height:"500px",
-                                visible:false, 
-                                draggable:true, 
-                                close:true,
-                                fixedcenter: true, 
-                                constraintoviewport: true
+            new YAHOO.widget.ResizePanel("links_panel", 
+                            {   
+                            visible:false, 
+                            fixedcenter: true, 
+                            constraintoviewport: true
                             } );
         YAHOO.rdgc.links.panel.setHeader("");
         YAHOO.rdgc.links.panel.setBody("");

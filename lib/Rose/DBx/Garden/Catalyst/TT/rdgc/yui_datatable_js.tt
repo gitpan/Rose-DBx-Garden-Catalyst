@@ -25,8 +25,9 @@
     var matrixOpts[% datatable.counter %] = {
         colDefs: [% datatable.columns.as_json %],
         [% IF datatable.col_filter.size %]colFilter: [% datatable.col_filter.as_json %],[% END %]
-        pageSize: [% results.pager.entries_per_page %],
+        pageSize: [% results.pager.entries_per_page || c.controller.page_size || '50' %],
         pagerId: 'pager[% datatable.counter %]',  // TODO refactor to make pager id config
+        sortBy: '[% datatable.sort_by %]',
         pk: "[% datatable.pk %]",
         totalPages: [% results.pager.last_page %],
         totalResults: [% results.count %],

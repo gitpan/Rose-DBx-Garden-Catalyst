@@ -5,7 +5,6 @@ README
 lib/Rose/DBx/Garden/Catalyst.pm
 lib/Rose/DBx/Garden/Catalyst/Templates.pm
 t/00-load.t
-t/boilerplate.t
 t/pod-coverage.t
 t/pod.t
 lib/Rose/DBx/Garden/Catalyst/Controller.pm
@@ -36,11 +35,13 @@ lib/Rose/DBx/Garden/Catalyst/TT/rdgc/wrapper.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_datatable.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_datatable_count.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_datatable_js.tt
+lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_footer.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_header.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_logger.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_menu.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_related_datatable_js.tt
 lib/Rose/DBx/Garden/Catalyst/View.pm
+lib/Rose/DBx/Garden/Catalyst/Excel.pm
 lib/Rose/DBx/Garden/Catalyst/YUI.pm
 lib/Rose/DBx/Garden/Catalyst/YUI/DataTable.pm
 META.yml                                 Module meta-data (added by MakeMaker)

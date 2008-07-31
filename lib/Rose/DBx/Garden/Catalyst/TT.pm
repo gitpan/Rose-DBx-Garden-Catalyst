@@ -6,7 +6,7 @@ use Data::Dump qw( dump );
 use Template;
 use JSON::XS;
 
-our $VERSION = '0.09_02';
+our $VERSION = '0.09_03';
 
 # package object
 my $JSON = JSON::XS->new->utf8;
@@ -85,6 +85,30 @@ sub as_json {
     return $j;
 }
 
+=head2 increment( I<n> )
+
+Increment a scalar number by one.
+Aliased as a scalar vmethod as 'inc'.
+
+=cut
+
+sub increment {
+    $_[0]++;
+    return;
+}
+
+=head2 decrement( I<n> )
+
+Decrement a scalar number by one.
+Aliased as a scalar vmethod as 'dec'.
+
+=cut
+
+sub decrement {
+    $_[0]--;
+    return;
+}
+
 # dump_data virt method instead of Dumper plugin
 $Template::Stash::HASH_OPS->{dump_data}   = \&dump_data;
 $Template::Stash::LIST_OPS->{dump_data}   = \&dump_data;
@@ -98,6 +122,9 @@ $Template::Stash::SCALAR_OPS->{dump_stderr} = \&dump_stderr;
 $Template::Stash::HASH_OPS->{as_json}   = \&as_json;
 $Template::Stash::LIST_OPS->{as_json}   = \&as_json;
 $Template::Stash::SCALAR_OPS->{as_json} = \&as_json;
+
+$Template::Stash::SCALAR_OPS->{inc} = \&increment;
+$Template::Stash::SCALAR_OPS->{dec} = \&decrement;
 
 1;
 

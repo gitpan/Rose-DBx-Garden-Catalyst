@@ -3,7 +3,7 @@
     DEFAULT controller = c.controller;
     DEFAULT form       = controller.form(c);
     DEFAULT method_name = 0;
-    SET field_names    = c.req.params.item('_field_names') || form.field_names;
+    SET field_names    = xls.field_names || c.req.params.item('_field_names') || form.field_names;
     DEFAULT datatable  = yui.datatable(
                 form        => form, 
                 results     => results,

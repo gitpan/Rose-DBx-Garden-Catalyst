@@ -8,12 +8,11 @@ use JSON::XS ();
 use Scalar::Util qw( blessed );
 use Rose::DBx::Garden::Catalyst::YUI::DataTable;
 
-our $VERSION = '0.09_02';
+our $VERSION = '0.09_03';
 
 use Rose::Object::MakeMethods::Generic (
-    'scalar --get_set_init' =>
-        [qw( takes_object_as_argument datetime_format )],
-    'boolean --get_set' => [ 'show_remove_button' => { default => 0 }, ],
+    'scalar --get_set_init' => [qw( datetime_format )],
+    'boolean --get_set'     => [ 'show_remove_button' => { default => 0 }, ],
 );
 
 =head1 NAME
@@ -37,15 +36,6 @@ documented here.
 Boolean method. Default is false. Used in serialize().
 
 =cut
-
-=head2 init_takes_object_as_argument
-
-Set hash ref of relationship names that take the parent RDBO object as a
-single argument. Used in serialize().
-
-=cut
-
-sub init_takes_object_as_argument { {} }
 
 =head2 init_datetime_format
 
@@ -109,11 +99,12 @@ sub datatable {
 
 }
 
-=head2 serialize( I<rdbo>, I<rel_info>, I<col_names>, I<parent_object>, I<cat_context>, I<show_related_values> )
+=head2 serialize( I<params> )
 
-Serialize a RDBO object I<rdbo>. This is required.
+Serialize a RDBO object I<rdbo>. I<params> should be a hash or hashref of key/value pairs.
+The "rdbo" key pair is required.
 
-The following optional params are:
+Optional params are:
 
 =over
 
@@ -134,26 +125,36 @@ related objects.
 
 I<cat_context> is a $c object.
 
-=item 
+=item
 
 I<show_related_values> is a hash ref of methods and foreign fields,
 as defined by RDGC::YUI::DataTable.
+
+=item
+
+I<takes_object_as_argument> is a hashref of method names where I<parent_object>
+is expected as a single argument.
 
 =back
 
 =cut
 
 sub serialize {
-    my $self = shift;
-    my %opts = ref( $_[0] ) ? %{ $_[0] } : @_;
-    my $rdbo = delete $opts{rdbo} or croak "RDBO object required";
-
+    my $self         = shift;
+    my %opts         = ref( $_[0] ) ? %{ $_[0] } : @_;
+    my $rdbo         = delete $opts{rdbo} or croak "RDBO object required";
     my $show_related = delete $opts{show_related_values};
+    my $takes_object = delete $opts{takes_object_as_argument};
 
     if ( defined $show_related
         and ref($show_related) ne 'HASH' )
     {
         croak "show_related_values should be a hashref";
+    }
+    if ( defined $takes_object
+        and ref($takes_object) ne 'HASH' )
+    {
+        croak "takes_object_as_argument should be a hashref";
     }
 
     my $flat = {};
@@ -171,11 +172,16 @@ sub serialize {
 
     for my $col (@colnames) {
 
+        #warn "col: $col => " . $rdbo->meta->column($col)->type;
+
         # non-accessor methods. these are NOT FK methods.
         # see below for $show_related_values.
         if ( !defined $rdbo->meta->column($col) ) {
-            if ( exists $self->takes_object_as_argument->{$col} ) {
-                $flat->{$col} = $rdbo->$col( $opts{parent} );
+            if ( exists $takes_object->{$col} ) {
+                eval { $flat->{$col} = $rdbo->$col( $opts{parent} ); };
+                if ($@) {
+                    $flat->{$col} = '[not available]';
+                }
             }
             else {
                 $flat->{$col} = $rdbo->$col;

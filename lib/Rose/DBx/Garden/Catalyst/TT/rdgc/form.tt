@@ -79,6 +79,7 @@ USE autoformat( all = 1 );  # for textarea readonly
                     fname  = fname,
                     param  = u.1,
                     limit  = field.limit,
+                    cache_size = 50
             };
             # if searching, we do not have an object yet.
             IF (object);

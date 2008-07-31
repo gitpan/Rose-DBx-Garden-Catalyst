@@ -75,3 +75,15 @@ Revision history for Rose-DBx-Garden-Catalyst
         * allow for related_field mapping at init time
         * fix autocomplete CSS 
 
+0.09_03 31 July 2008
+        * split up rdgc/footer.tt into yui_footer.tt
+        * add default_sort_by() to Form::Metadata
+        * toggle rowsPerPage via select popup
+        * throw_error if !can_read in autocomplete()
+        * support on* attributes for js in autocomplete
+        * added RDGC::Excel for .xls output
+        * refactor the takes_object_as_argument feature
+        * link_panel now uses same YAHOO ResizePanel widget as addRowPanel
+        * use double ;; in primary_key_uri_escaped() to match CatalystX::CRUD 0.28
+
+

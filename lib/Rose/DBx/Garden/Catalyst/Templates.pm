@@ -1,7 +1,7 @@
 package Rose::DBx::Garden::Catalyst::Templates;
 use strict;
 
-our $VERSION = '0.09_02';
+our $VERSION = '0.09_03';
 
 =head1 NAME
 
@@ -115,7 +115,8 @@ YAHOO.rdgc.autocomplete_text_field = function( opts ) {
 
     this.oACDS = new YAHOO.widget.DS_XHR(opts.url, [ 'ResultSet.Result', opts.param.c, 'pk' ]);
     this.oACDS.queryMatchContains = true;
-    this.oACDS.scriptQueryAppend = opts.params;
+    this.oACDS.scriptQueryAppend  = opts.params;
+    this.oACDS.maxCacheEntries    = opts.cache_size;
     
     var myItemSelectEventHandler = function( oSelf, elItem, oData ) {
         //YAHOO.rdgc.log('set ' + opts.fname + ' = ' + elItem[2][1]);
@@ -291,7 +292,7 @@ YAHOO.rdgc.panelled_related_records_matrix = function( matrixOpts ) {
   YAHOO.rdgc.panel_state = {
     results:    matrixOpts.pageSize,
     startIndex: 0,
-    sort:       matrixOpts.pk,
+    sort:       matrixOpts.sortBy,
     dir:        "asc",
     filter:     ""
   };
@@ -386,12 +387,13 @@ YAHOO.rdgc.panelled_related_records_matrix = function( matrixOpts ) {
     
     var handlePagination = function(state, datatable) {
     
-        //console.debug(state);
+        YAHOO.rdgc.log(state);
+        
         YAHOO.rdgc.panel_state.startIndex = state.recordOffset;
         YAHOO.rdgc.panel_state.results    = state.rowsPerPage;
         return DataTable.handleDataSourcePagination(state, datatable);
     }
-    
+        
     // function used to intercept sorting requests
     var handleSorting = function (oColumn) {
 
@@ -437,14 +439,14 @@ YAHOO.rdgc.panelled_related_records_matrix = function( matrixOpts ) {
         containers         : ['panel' + matrixOpts.pagerId],
         pageLinks          : 5,
         rowsPerPage        : matrixOpts.pageSize,
-        //rowsPerPageOptions : [10,20,30],
+        rowsPerPageOptions : [ { value: parseInt(matrixOpts.pageSize), text: matrixOpts.pageSize + '' }, { value: 50, text: '50' }, { value: 1000, text: '1000' }],
         firstPageLinkLabel  : '|&#171;',
         lastPageLinkLabel   : '&#187;|',
         previousPageLinkLabel: '&#171;',
         nextPageLinkLabel   : '&#187;',
-        alwaysVisible       : false,  // do not show if less than 1 page
+        alwaysVisible       : true,  // in case user changes rowsPerPage
         template            : 
-            "{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} <div class='pg-bar'></div>"
+            "{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} Page size: {RowsPerPageDropdown} <div class='pg-bar'></div>"
     });
 
     var myTableConfig = {
@@ -455,7 +457,7 @@ YAHOO.rdgc.panelled_related_records_matrix = function( matrixOpts ) {
         width                   : matrixOpts.panel_width,
         height                  : matrixOpts.panel_height,
         scrollable              : true,
-        sortedBy:               { key: matrixOpts.pk, dir: "asc" }
+        sortedBy:               { key: matrixOpts.sortBy, dir: "asc" }
     };
 
     myDataTable = new DataTable(
@@ -611,6 +613,7 @@ YAHOO.rdgc.related_records_matrix = function( opts ) {
         pageSize:   opts.pageSize,
         pagerId:    opts.pagerId,
         pk:         opts.pk,
+        sortBy:     opts.sortBy,
         totalPages: opts.totalPages,
         totalResults: opts.totalResults,
         divId:      opts.divId,
@@ -675,7 +678,8 @@ YAHOO.rdgc.handleHistoryNavigation = function (state, myMatrix) {
     var oPayload = {
         startIndex : parsed.startIndex,
         pagination : {
-            recordOffset : parsed.startIndex
+            recordOffset : parsed.startIndex,
+            rowsPerPage  : parsed.results
         },
         sorting : {
             key : parsed.sort,
@@ -690,6 +694,8 @@ YAHOO.rdgc.handleHistoryNavigation = function (state, myMatrix) {
             scope    : myMatrix.myDataTable,
             argument : oPayload
     });
+    
+    YAHOO.rdgc.log("navigation done");
 };
 
 /* 2.5.0 matrix 
@@ -701,7 +707,7 @@ YAHOO.rdgc.create_results_matrix = function( matrixOpts ) {
     YAHOO.rdgc.matrix_state = {
         results:    matrixOpts.pageSize,
         startIndex: 0,
-        sort:       matrixOpts.pk,
+        sort:       matrixOpts.sortBy,
         dir:        "asc"
     };
   
@@ -722,6 +728,9 @@ YAHOO.rdgc.create_results_matrix = function( matrixOpts ) {
         
     // function used to intercept pagination requests
     var handlePagination = function (state,datatable) {
+    
+        YAHOO.rdgc.log(state);
+    
         var sortedBy  = datatable.get('sortedBy');
 
         var newState = YAHOO.rdgc.generateStateString(
@@ -734,7 +743,8 @@ YAHOO.rdgc.create_results_matrix = function( matrixOpts ) {
         YAHOO.rdgc.matrix_state = YAHOO.rdgc.parseStateString(newState);
 
         History.navigate(matrixOpts.anchor,newState);
-    };
+
+    }; 
 
     // function used to intercept sorting requests
     var handleSorting = function (oColumn) {
@@ -766,7 +776,7 @@ YAHOO.rdgc.create_results_matrix = function( matrixOpts ) {
     };
 
     var initialState = History.getBookmarkedState(matrixOpts.anchor) 
-                        || YAHOO.rdgc.generateStateString(0,matrixOpts.pk,'asc',matrixOpts.pageSize);
+                        || YAHOO.rdgc.generateStateString(0,matrixOpts.sortBy,'asc',matrixOpts.pageSize);
         
     History.register(matrixOpts.anchor, initialState, YAHOO.rdgc.handleHistoryNavigation, myMatrix);
 
@@ -798,18 +808,19 @@ YAHOO.rdgc.create_results_matrix = function( matrixOpts ) {
         // Create the DataTable configuration and Paginator using the state
         // information we pulled from the History Manager
         myPaginator = new YAHOO.widget.Paginator({
-            rowsPerPage : state.results,
-            totalRecords: matrixOpts.totalResults,
-            pageLinks:    5,
-            recordOffset :      state.startIndex,
-            containers :        [matrixOpts.pagerId],
-            firstPageLinkLabel: '|&#171;',
-            lastPageLinkLabel:  '&#187;|',
-            previousPageLinkLabel: '&#171;',
-            nextPageLinkLabel:  '&#187;',
-            alwaysVisible       : false,  // do not show if less than 1 page
-            template : 
-                "{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} <div class='pg-bar'></div>"
+            rowsPerPage             : state.results,
+            rowsPerPageOptions      : [ { value: parseInt(matrixOpts.pageSize), text: matrixOpts.pageSize }, { value: 50, text: '50' }, { value: 1000, text: '1000' }],
+            totalRecords            : matrixOpts.totalResults,
+            pageLinks               : 5,
+            recordOffset            : state.startIndex,
+            containers              : [matrixOpts.pagerId],
+            firstPageLinkLabel      : '|&#171;',
+            lastPageLinkLabel       : '&#187;|',
+            previousPageLinkLabel   : '&#171;',
+            nextPageLinkLabel       : '&#187;',
+            alwaysVisible           : true,  // in case user changes rowsPerPage
+            template                : 
+                "{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} Page size: {RowsPerPageDropdown} <div class='pg-bar'></div>"
         });
 
         var myConfig = {
@@ -1118,7 +1129,7 @@ YAHOO.extend(YAHOO.widget.ResizePanel, YAHOO.widget.Panel, {
                 
                 // allow for additional callbacks
                 if (me.myLayout) {
-                    YAHOO.msi.log("resize layout");
+                    YAHOO.rdgc.log("resize layout");
                     me.myLayout.resize({ height: nNewHeight, width: nNewWidth });
                 }
             };
@@ -1973,6 +1984,27 @@ div.links li {
 .yui-skin-sam .yui-dt-body { 
     cursor:pointer; /* when rows are selectable */
 }
+
+/* fix OSX gecko bug per http://developer.yahoo.com/yui/container/ */
+.yui-panel-container.hide-scrollbars * div.yui-layout-bd {
+    /* Hide scrollbars by default for Gecko on OS X */
+    overflow: hidden;
+}
+
+.yui-panel-container.show-scrollbars * div.yui-layout-bd {
+    /* Show scrollbars for Gecko on OS X when the Panel is visible  */
+    overflow: auto;
+}
+
+/* pager popup */
+form.rdgc div.pager_wrapper select,
+div.pager_wrapper select
+{
+    float: none;
+    margin: 0;
+    padding: 0;
+}
+
 
 __json_js__
 /*

@@ -6,7 +6,7 @@ use Carp;
 use Data::Dump qw( dump );
 use Class::C3;
 
-our $VERSION = '0.09_02';
+our $VERSION = '0.09_03';
 
 __PACKAGE__->mk_accessors(qw( autocomplete_columns autocomplete_method ));
 
@@ -310,16 +310,21 @@ sub postcommit {
     # get whatever auto-set values were set.
     $obj->load unless $c->action->name eq 'rm';
 
-    if ( exists $c->req->params->{return}
-        && $c->req->params->{return} eq 'json' )
-    {
+    if ( exists $c->req->params->{return} ) {
 
-        $c->log->debug("JSONifying object for response") if $c->debug;
+        my $type = $c->req->params->{return};
+        if ( $type eq 'json' ) {
 
-        $c->stash->{object} = $obj;    # is this necessary?
-        $c->stash->{template} ||= 'rdgc/jsonify.tt';
-        $c->response->content_type( $self->json_mime );
+            $c->log->debug("JSONifying object for response") if $c->debug;
 
+            $c->stash->{object} = $obj;    # is this necessary?
+            $c->stash->{template} ||= 'rdgc/jsonify.tt';
+            $c->response->content_type( $self->json_mime );
+
+        }
+        else {
+            $self->throw_error("unknown return type: $type");
+        }
     }
     else {
         $self->next::method( $c, $obj );
@@ -382,6 +387,10 @@ API.
 
 sub autocomplete : Local {
     my ( $self, $c ) = @_;
+    if ( !$self->can_read($c) ) {
+        $self->throw_error("Permission denied");
+        return;
+    }
     my $p = $c->req->params;
     unless ( $p->{l} and $p->{c} and $p->{query} ) {
         $self->throw_error("need l and c and query params");

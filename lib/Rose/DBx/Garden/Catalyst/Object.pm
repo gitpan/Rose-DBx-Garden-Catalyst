@@ -34,7 +34,7 @@ use base qw( Rose::DB::Object::Helpers );
 
 use Rose::Class::MakeMethods::Generic ( scalar => ['debug'], );
 
-our $VERSION = '0.09_02';
+our $VERSION = '0.09_03';
 
 =head1 NAME
 
@@ -71,7 +71,7 @@ sub primary_key_uri_escaped {
         $v =~ s/;/ sprintf( "%%%02X", ';' ) /eg;
         push @esc, $v;
     }
-    my $pk = join( ';', @esc );
+    my $pk = join( ';;', @esc );
     return $pk;
 }
 

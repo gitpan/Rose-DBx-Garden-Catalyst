@@ -34,7 +34,7 @@
   %]
   
 <div id="head">
- <div id="welcome">Welcome to RDGC</div>
+ <div id="welcome">Welcome to [% c.config.name %]</div>
  <!-- TODO implement a "all unique columns" search feature
  <div id="quicksearch">
   <form action="[% c.uri_for('/rdgc/search/fuzzy') %]">
