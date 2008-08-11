@@ -15,7 +15,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.09_03';
+our $VERSION = '0.09_04';
 
 =head1 NAME
 
@@ -376,7 +376,7 @@ sub _write_tt_file {
 
 sub _tt_default_page {
     return <<EOF;
-[% PROCESS rdgc/default.tt %]
+Edit the root/rdgc/default page to change this content.
 EOF
 }
 
@@ -478,11 +478,8 @@ sub _make_controller {
     # otherwise we get false partial matches.
     $model_class =~ s/^${catalyst_prefix}::Model:://;
 
-    # TODO make a default accessor in base_code to calculate this
-    # for multiple PK support.
-    my $pk;
     my @pk = $rdbo_class->meta->primary_key_column_names;
-    $pk = $pk[0];
+    my $pk = join( "', '", @pk );
 
     return <<EOF;
 package $contr_class;
@@ -496,7 +493,7 @@ __PACKAGE__->config(
     init_object             => '${object_name}_from_form',
     default_template        => '$tmpl',
     model_name              => '$model_class',
-    primary_key             => '$pk',
+    primary_key             => ['$pk'],
     view_on_single_result   => 1,
     page_size               => 50,
     garden_class            => '$base_rdbo_class',

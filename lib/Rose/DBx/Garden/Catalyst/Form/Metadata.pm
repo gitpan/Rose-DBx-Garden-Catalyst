@@ -5,7 +5,7 @@ use Carp;
 use Data::Dump qw( dump );
 use base qw( Rose::Object );
 
-our $VERSION = '0.09_03';
+our $VERSION = '0.09_04';
 
 use Rose::Object::MakeMethods::Generic (
     'scalar' => [

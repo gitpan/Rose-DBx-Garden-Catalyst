@@ -126,7 +126,8 @@ USE autoformat( all = 1 );  # for textarea readonly
       &&  form.meta.show_related_fields 
       &&  field.internal_value.length
       &&  form.meta.is_related_field( fname ) 
-      &&  fname != c.controller.primary_key );
+      &&  !c.controller.primary_key.grep( "^$fname$" ).size
+    );
   related       = form.meta.related_field( fname );
   foreign_field = form.meta.show_related_field_using( related.class, fname );
   foreign_key   = related.foreign_col;

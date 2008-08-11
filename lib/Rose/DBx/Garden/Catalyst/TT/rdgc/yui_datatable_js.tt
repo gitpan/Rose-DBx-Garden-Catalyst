@@ -15,7 +15,13 @@
         YAHOO.util.Event.stopEvent(oArgs.event);
         var elTargetRow = this.getTrEl( oArgs.target );
         var record      = this.getRecord(elTargetRow);
-        var pk          = record.getData("[% datatable.pk %]");
+        var pks         = [% datatable.pk.as_json %];
+        var pk_vals     = [];
+        var i;
+        for(i=0; i<pks.length; i++) {
+            pk_vals.push( encodeURIComponent( record.getData(pks[i]) ) );
+        }
+        var pk = pk_vals.join(';;');
         var newurl      = '[% c.uri_for("/" _ datatable.controller.action_namespace) %]/' + 
                             pk + 
                             '/' + 
@@ -28,7 +34,7 @@
         pageSize: [% results.pager.entries_per_page || c.controller.page_size || '50' %],
         pagerId: 'pager[% datatable.counter %]',  // TODO refactor to make pager id config
         sortBy: '[% datatable.sort_by %]',
-        pk: "[% datatable.pk %]",
+        pk: [% datatable.pk.as_json %],
         totalPages: [% results.pager.last_page %],
         totalResults: [% results.count %],
         anchor: "matrix[% datatable.counter %]",

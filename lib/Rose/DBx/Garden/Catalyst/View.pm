@@ -10,7 +10,7 @@ use Class::Inspector;
 use Rose::DBx::Garden::Catalyst::TT;
 use Rose::DBx::Garden::Catalyst::YUI;
 
-our $VERSION = '0.09_03';
+our $VERSION = '0.09_04';
 
 =head1 NAME
 

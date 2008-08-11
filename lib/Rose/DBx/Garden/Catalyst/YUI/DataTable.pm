@@ -7,7 +7,7 @@ use base qw( Rose::Object );
 use JSON::XS ();
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.09_03';
+our $VERSION = '0.09_04';
 
 use Rose::Object::MakeMethods::Generic (
     'scalar' => [
@@ -128,12 +128,16 @@ sub init {
         @col_names = grep { !exists $takes_object->{$_} } @col_names;
     }
 
-    $self->pk( $controller->primary_key );
+    $self->pk(
+        ref $controller->primary_key
+        ? $controller->primary_key
+        : [ $controller->primary_key ]
+    );
     $self->columns( [] );
     $self->show_related_values( {} );
     $self->col_filter( [] );
     $self->col_keys( \@col_names );
-    $self->sort_by( $form->meta->default_sort_by || $self->pk );
+    $self->sort_by( $form->meta->default_sort_by || $self->pk->[0] );
 
     if ( $results->isa('CatalystX::CRUD::Results')
         && defined $results->query )
@@ -199,7 +203,7 @@ sub init {
             push( @{ $self->{col_filter} }, $field_name );
         }
 
-        if ( $field_name eq $self->{pk} ) {
+        if ( grep { $_ eq $field_name } @{ $self->{pk} } ) {
             next;
         }
 

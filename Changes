@@ -86,4 +86,7 @@ Revision history for Rose-DBx-Garden-Catalyst
         * link_panel now uses same YAHOO ResizePanel widget as addRowPanel
         * use double ;; in primary_key_uri_escaped() to match CatalystX::CRUD 0.28
 
+0.09_04 xxx
+        * update .tt and .pm files to support multi-column PKs
+
 

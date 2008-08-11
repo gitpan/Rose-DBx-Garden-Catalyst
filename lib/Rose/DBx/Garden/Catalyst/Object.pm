@@ -34,7 +34,7 @@ use base qw( Rose::DB::Object::Helpers );
 
 use Rose::Class::MakeMethods::Generic ( scalar => ['debug'], );
 
-our $VERSION = '0.09_03';
+our $VERSION = '0.09_04';
 
 =head1 NAME
 
@@ -56,6 +56,12 @@ some convenience methods of its own.
 
 Primary key value generator used by Rose::DBx::Garden::Catalyst-generated code.
 
+If there are no values set for any of the column(s) comprising
+the primary key, returns 0.
+
+Otherwise, returns all column values joined with C<;;> as per
+CatalystX::CRUD::Controller API.
+
 =cut
 
 sub primary_key_uri_escaped {
@@ -70,6 +76,9 @@ sub primary_key_uri_escaped {
         $v = '' unless defined $v;
         $v =~ s/;/ sprintf( "%%%02X", ';' ) /eg;
         push @esc, $v;
+    }
+    if ( !grep {m/./} @esc ) {
+        return 0;
     }
     my $pk = join( ';;', @esc );
     return $pk;

@@ -5,15 +5,13 @@
     IF (! ac_method.defined );
         THROW rdgc '"ac_method" must be defined';
     END;
-    IF (! pk.defined );
-        SET pk = c.controller.primary_key;
-    END;
     
     SET dataset = [];
     SET no_wrapper = 1;
     SET count = 0;
     FOR r = results;
-        dataset.push({ $ac_field => r.$ac_method, pk => r.$pk });
+        SET pk = c.controller.make_primary_key_string(r);
+        dataset.push({ $ac_field => r.$ac_method, pk => $pk });
         count = count + 1;
     END;
     resultset = {

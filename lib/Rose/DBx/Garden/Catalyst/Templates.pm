@@ -1,7 +1,7 @@
 package Rose::DBx::Garden::Catalyst::Templates;
 use strict;
 
-our $VERSION = '0.09_03';
+our $VERSION = '0.09_04';
 
 =head1 NAME
 
@@ -198,7 +198,13 @@ YAHOO.rdgc.add_matrix_row = function( matrix ) {
                 var oDataTable  = oSelf.myDataTable;
                 var target      = oArgs.target;
                 var record      = oDataTable.getRecord(target);
-                var pk          = record.getData(matrix.opts.pk);
+                var pks         = matrix.opts.pk;
+                var pk_vals     = [];
+                var i;
+                for(i=0; i<pks.length; i++) {
+                    pk_vals.push( encodeURIComponent( record.getData(pks[i]) ) );
+                }
+                var pk = pk_vals.join(';;');
        
                 //alert(matrix.opts.name + ": got pk " + pk + ' cmap: ' + matrix.opts.cmap.toJSONString());
                 if (matrix.opts.cmap) {
@@ -230,7 +236,7 @@ YAHOO.rdgc.add_matrix_row = function( matrix ) {
                 }
                 else {
                     var url = matrix.opts.parent_url + '/add_m2m/' + matrix.opts.parent + '/' +
-                                matrix.opts.pk + '/' + pk;
+                                matrix.opts.pk.join(';;') + '/' + pk;
                     //alert("add_m2m :" + url);
                     
                     var req = YAHOO.util.Connect.asyncRequest('POST', url,
@@ -526,7 +532,13 @@ YAHOO.rdgc.related_records_matrix = function( opts ) {
         var vtarget     = YAHOO.util.Event.getTarget(oArgs.event);
         var record      = this.getRecord(target);
         var column      = this.getColumn(vtarget);
-        var pk          = record.getData(opts.pk);
+        var pks         = opts.pk;
+        var pk_vals     = [];
+        var i;
+        for(i=0; i<pks.length; i++) {
+            pk_vals.push( encodeURIComponent( record.getData(pks[i]) ) );
+        }
+        var pk = pk_vals.join(';;');
         var oDataTable  = this;
         
         // remove this row from relationship
@@ -598,7 +610,13 @@ YAHOO.rdgc.related_records_matrix = function( opts ) {
         var vtarget     = YAHOO.util.Event.getTarget(oArgs.event);
         var record      = this.getRecord(target);
         var column      = this.getColumn(vtarget);
-        var pk          = record.getData(opts.pk);            
+        var pks         = opts.pk;
+        var pk_vals     = [];
+        var i;
+        for(i=0; i<pks.length; i++) {
+            pk_vals.push( encodeURIComponent( record.getData(pks[i]) ) );
+        }
+        var pk = pk_vals.join(';;');
         var newurl      = opts.info_url + '/' + pk + '/' + opts.row_url_method;
         window.location.href = newurl;   
       };

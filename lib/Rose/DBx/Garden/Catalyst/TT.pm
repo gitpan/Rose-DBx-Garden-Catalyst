@@ -6,7 +6,7 @@ use Data::Dump qw( dump );
 use Template;
 use JSON::XS;
 
-our $VERSION = '0.09_03';
+our $VERSION = '0.09_04';
 
 # package object
 my $JSON = JSON::XS->new->utf8;

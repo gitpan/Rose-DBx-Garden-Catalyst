@@ -34,7 +34,7 @@
         panel_width:    '[% c.config.panel.width  || '730px' %]',
         panel_height:   '[% c.config.panel.height || '300px' %]',
         pagerId:        '[% method %]Pager',
-        pk:             '[% datatable.pk %]',
+        pk:             [% datatable.pk.as_json %],
         sortBy:         '[% datatable.sort_by %]',
         info_url:       '[% rel_info.url %]',
         panel_url:      '[% rel_info.url %]/yui_datatable?',

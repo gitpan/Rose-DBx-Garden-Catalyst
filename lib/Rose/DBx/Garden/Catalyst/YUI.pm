@@ -8,7 +8,7 @@ use JSON::XS ();
 use Scalar::Util qw( blessed );
 use Rose::DBx::Garden::Catalyst::YUI::DataTable;
 
-our $VERSION = '0.09_03';
+our $VERSION = '0.09_04';
 
 use Rose::Object::MakeMethods::Generic (
     'scalar --get_set_init' => [qw( datetime_format )],
@@ -206,6 +206,8 @@ sub serialize {
             my $srv    = $show_related->{$col};
             my $method = $srv->{method};
             my $ff     = $srv->{foreign_field};
+
+            #warn "col: $col  rdbo: $rdbo  method: $method  ff: $ff";
             if ( defined $rdbo->$method && defined $ff ) {
                 $flat->{$col} = $rdbo->$method->$ff;
             }
