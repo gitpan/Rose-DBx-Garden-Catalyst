@@ -1,13 +1,1 @@
-[%# home page %]
-
-<div id="main">
-<div>
-Welcome to the Rose Garden.
-</div>
-
-<div>
-You should replace this page with something more useful by editing
-the <pre>root/rdgc/default.tt</pre> page.
-</div>
-
-</div>
+[% PROCESS crud/default.tt %]

@@ -8,14 +8,15 @@ use Path::Class;
 use Data::Dump qw( dump );
 use Tree::Simple;
 use Tree::Simple::Visitor::ToNestedHash;
+use Class::Inspector;
+use File::Copy;
 
 use Rose::Object::MakeMethods::Generic (
-    'scalar --get_set_init' =>
-        [qw( template_class catalyst_prefix controller_prefix )],
-    boolean => [ 'tt' => { default => 1 }, ]
+    'scalar --get_set_init' => [qw( catalyst_prefix controller_prefix )],
+    boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.09_04';
+our $VERSION = '0.09_05';
 
 =head1 NAME
 
@@ -66,16 +67,6 @@ system, just set the C<tt> option to 0.
 Only new or overridden methods are documented here.
 
 =cut
-
-=head2 init_template_class
-
-If the B<tt> config option is true, use the template_class() class
-for the raw snippets of presentation code. 
-Default is Rose::DBx::Garden::Catalyst::Templates.
-
-=cut
-
-sub init_template_class {'Rose::DBx::Garden::Catalyst::Templates'}
 
 =head2 init_controller_prefix
 
@@ -286,7 +277,7 @@ sub make_catalyst {
     }
 
     # we need 1 dir, possibly 2
-    my $rdgc_tt_dir = dir( $tt_dir, 'rdgc' );
+    my $rdgc_tt_dir = dir( $tt_dir, 'crud' );   # used to be 'rdgc'
     my $base_tt_dir = dir( $tt_dir, $base_url );
     $rdgc_tt_dir->mkpath(1);
     $base_tt_dir->mkpath(1);
@@ -295,26 +286,12 @@ sub make_catalyst {
     $self->_write_tt_file( file( $base_tt_dir, 'default.tt' )->stringify,
         $self->_tt_default_page );
 
-    # core .tt files
-    my $tt = $self->_get_tt;
-
     # write the menu now that we know the dir exists
     $self->_write_tt_file(
         file( $rdgc_tt_dir, 'schema_menu.tt' )->stringify,
         '[% SET menu = '
             . dump( { id => 'schema_menu', items => \@menu_items } ) . '%]'
     );
-
-    # css and js go in static
-    $self->_write_tt_file(
-        file( $tt_dir, 'static', 'rdgc', 'rdgc.css' )->stringify,
-        $tt->{css}, qr{.css} );
-    $self->_write_tt_file(
-        file( $tt_dir, 'static', 'rdgc', 'rdgc.js' )->stringify,
-        $tt->{js}, qr{.js} );
-    $self->_write_tt_file(
-        file( $tt_dir, 'static', 'rdgc', 'json.js' )->stringify,
-        $tt->{json_js}, qr{.js} );
 
     # stubs for each controller
     for my $ctrl (@controllers) {
@@ -327,6 +304,29 @@ sub make_catalyst {
                 $self->$method );
         }
     }
+
+    # css and js will not work out of the box anymore since
+    # they are in the CatalystX::CRUD::YUI package.
+    # so find them and copy them locally so that Static::Simple
+    # can find them.
+    my $cx_crud_yui_tt_path
+        = Class::Inspector->loaded_filename('CatalystX::CRUD::YUI::TT');
+    $cx_crud_yui_tt_path =~ s/\.pm//;
+
+    my $js_dir = dir( $tt_dir, 'static', 'js' );
+    $js_dir->mkpath(1);
+    my $css_dir = dir( $tt_dir, 'static', 'css' );
+    $css_dir->mkpath(1);
+
+    copy( file( $cx_crud_yui_tt_path, 'static', 'js', 'crud.js' ),
+        file( $js_dir, 'crud.js' ) )
+        or warn "ERROR: failed to copy crud.js to local static/js\n";
+    copy( file( $cx_crud_yui_tt_path, 'static', 'js', 'json.js' ),
+        file( $js_dir, 'json.js' ) )
+        or warn "ERROR: failed to copy json.js to local static/js\n";
+    copy( file( $cx_crud_yui_tt_path, 'static', 'css', 'crud.css' ),
+        file( $css_dir, 'crud.css' ) )
+        or warn "ERROR: failed to copy crud.css to local static/css\n";
 
     return $garden;
 }
@@ -496,7 +496,7 @@ __PACKAGE__->config(
     primary_key             => ['$pk'],
     view_on_single_result   => 1,
     page_size               => 50,
-    garden_class            => '$base_rdbo_class',
+    schema_class_prefix     => '$base_rdbo_class',
 );
 
 1;
@@ -578,7 +578,7 @@ package ${cat_class}::View::Excel;
 use strict;
 use warnings;
 use base qw( CatalystX::CRUD::View::Excel );
-use Rose::DBx::Garden::Catalyst::YUI;
+use CatalystX::CRUD::YUI;
 
 sub get_template_params {
     my ( \$self, \$c ) = \@_;
@@ -586,32 +586,13 @@ sub get_template_params {
     return (
         \$cvar => \$c,
         \%{ \$c->stash },
-        yui => Rose::DBx::Garden::Catalyst::YUI->new,
+        yui => CatalystX::CRUD::YUI->new,
     );
 }
 
 1;
 
 EOF
-}
-
-# cribbed from Catalyst::Helper get_file()
-sub _get_tt {
-    my $self           = shift;
-    my $template_class = $self->template_class;
-    eval "require $template_class";
-    croak $@ if $@;
-
-    local $/;
-    my $data = eval "package $template_class; <DATA>";
-    my @files = split /^__(.+)__\r?\n/m, $data;
-    shift @files;
-    my %tt;
-    while (@files) {
-        my ( $name, $content ) = splice @files, 0, 2;
-        $tt{$name} = $content;
-    }
-    return \%tt;
 }
 
 1;

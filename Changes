@@ -86,7 +86,19 @@ Revision history for Rose-DBx-Garden-Catalyst
         * link_panel now uses same YAHOO ResizePanel widget as addRowPanel
         * use double ;; in primary_key_uri_escaped() to match CatalystX::CRUD 0.28
 
-0.09_04 xxx
+0.09_04 11 Aug 2008
         * update .tt and .pm files to support multi-column PKs
+
+0.09_05 27 Aug 2008
+        * fix UTF-8 encoding bug where JSON:XS utf8() flag was incorrectly set to 'on'.
+        * move bulk of the code into smaller packages:
+            CatalystX::CRUD::YUI
+            Rose::HTMLx::Form::Related
+            Rose::DBx::Object::MoreHelpers
+          This refactoring means that DBIC users can use all the YUI interface
+          and RHTMLO goodness as well.
+        * changed the default root/<dir> to 'crud' instead of 'rdgc'
+          IF YOU ARE UPGRADING, you can symlink or rename rdgc => crud
+
 
 

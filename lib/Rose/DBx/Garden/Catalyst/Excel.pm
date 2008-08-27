@@ -1,16 +1,13 @@
 package Rose::DBx::Garden::Catalyst::Excel;
 use strict;
 use warnings;
-use base qw( CatalystX::CRUD::View::Excel );
+use base qw( CatalystX::CRUD::YUI::Excel );
 use Carp;
 use Data::Dump qw( dump );
 use Class::C3;
-use Path::Class::Dir;
-use Class::Inspector;
 use Rose::DBx::Garden::Catalyst::TT;
-use Rose::DBx::Garden::Catalyst::YUI;
 
-our $VERSION = '0.09_04';
+our $VERSION = '0.09_05';
 
 =head1 NAME
 
@@ -18,11 +15,13 @@ Rose::DBx::Garden::Catalyst::Excel - View class for Excel output
 
 =head1 DESCRIPTION
 
-Rose::DBx::Garden::Catalyst::Excel is a subclass of CatalystX::CRUD::View::Excel.
+Rose::DBx::Garden::Catalyst::Excel is a subclass of 
+CatalystX::CRUD::YUI::Excel.
 
 =head1 CONFIGURATION
 
-Configuration is the same as with CatalystX::CRUD::View::Excel. Read those docs.
+Configuration is the same as with CatalystX::CRUD::View::Excel. 
+Read those docs.
 
 The default config here is:
 
@@ -60,37 +59,23 @@ sub new {
     my ( $class, $c, $arg ) = @_;
     my $self = $class->next::method( $c, $arg );
 
-    my $template_base = Class::Inspector->loaded_filename(
-        'Rose::DBx::Garden::Catalyst::TT');
-    $template_base =~ s/\.pm$//;
-    $self->etp_config->{INCLUDE_PATH}
-        = [ $c->path_to('root'), Path::Class::Dir->new($template_base) ];
+    my @inc_path = ( Path::Class::dir( $c->config->{root} ) );
+
+    for my $tt_class (
+        qw(
+        CatalystX::CRUD::YUI::TT
+        Rose::DBx::Garden::Catalyst::TT )
+        )
+    {
+
+        my $template_base = Class::Inspector->loaded_filename($tt_class);
+        $template_base =~ s/\.pm$//;
+        push( @inc_path, Path::Class::dir($template_base) );
+    }
+
+    $self->etp_config->{INCLUDE_PATH} = \@inc_path;
 
     return $self;
-}
-
-=head2 get_template_params
-
-Overrides base method to add some other default variables.
-
-=over
-
-=item
-
-The C<yui> variable is a Rose::DBx::Garden::Catalyst::YUI object.
-
-=back
-
-=cut
-
-sub get_template_params {
-    my ( $self, $c ) = @_;
-    my $cvar = $self->config->{CATALYST_VAR} || 'c';
-    return (
-        $cvar => $c,
-        %{ $c->stash },
-        yui => Rose::DBx::Garden::Catalyst::YUI->new,
-    );
 }
 
 1;

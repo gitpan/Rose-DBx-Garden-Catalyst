@@ -1,9 +1,1 @@
- [% PROCESS rdgc/yui_footer.tt %]
- <div id="rdgc_footer">
- Created via Rose::DBx::Garden::Catalyst
- </div>
- 
- </body>
-</html>
-
-
+[% PROCESS crud/footer.tt %]

@@ -3,38 +3,11 @@ use strict;
 use warnings;
 use Carp;
 use Data::Dump qw( dump );
-use Scalar::Util qw( blessed );
-use Rose::DB;
-use Rose::DB::Object::Manager;
-use Rose::DB::Object::Metadata::Relationship::OneToMany;
-Rose::DB::Object::Metadata::Relationship::OneToMany
-    ->default_auto_method_types(
-    qw(
-        find
-        get_set_on_save
-        add_on_save
-        count
-        iterator
-        )
-    );
-use Rose::DB::Object::Metadata::Relationship::ManyToMany;
-Rose::DB::Object::Metadata::Relationship::ManyToMany
-    ->default_auto_method_types(
-    qw(
-        find
-        get_set_on_save
-        add_on_save
-        count
-        iterator
-        )
-    );
-
 use base qw( Rose::DB::Object );
 use base qw( Rose::DB::Object::Helpers );
+use base qw( Rose::DBx::Object::MoreHelpers );
 
-use Rose::Class::MakeMethods::Generic ( scalar => ['debug'], );
-
-our $VERSION = '0.09_04';
+our $VERSION = '0.09_05';
 
 =head1 NAME
 
@@ -50,201 +23,20 @@ some convenience methods of its own.
 
 =head1 METHODS
 
-=cut
-
-=head2 primary_key_uri_escaped
-
-Primary key value generator used by Rose::DBx::Garden::Catalyst-generated code.
-
-If there are no values set for any of the column(s) comprising
-the primary key, returns 0.
-
-Otherwise, returns all column values joined with C<;;> as per
-CatalystX::CRUD::Controller API.
+See Rose::DBx::Object::MoreHelpers.
 
 =cut
 
-sub primary_key_uri_escaped {
-    my $self = shift;
-    my @cols = $self->meta->primary_key_column_names;
-    my @vals;
-    for my $m (@cols) {
-        push( @vals, scalar $self->$m );
-    }
-    my @esc;
-    for my $v ( map { $self->$_ } @cols ) {
-        $v = '' unless defined $v;
-        $v =~ s/;/ sprintf( "%%%02X", ';' ) /eg;
-        push @esc, $v;
-    }
-    if ( !grep {m/./} @esc ) {
-        return 0;
-    }
-    my $pk = join( ';;', @esc );
-    return $pk;
-}
+=head2 schema_class_prefix
 
-=head2 flatten
-
-Returns the serialized object and its immediately related objects.
+Returns garden_prefix() value. schema_class_prefix() is used
+by Rose::HTMLx::Form::Related while garden_prefix() is what
+Rose::DBx::Garden sets.
 
 =cut
 
-sub flatten {
-    my $self  = shift;
-    my $pairs = shift || $self->column_value_pairs;
-    my %flat  = %$pairs;
-    for ( keys %flat ) {
-        if ( blessed( $flat{$_} ) and $flat{$_}->isa('DateTime') ) {
-            $flat{$_} = "$flat{$_}";
-        }
-    }
-    for my $rel ( $self->meta->relationships ) {
-        my $method = $rel->name;
-        my $val    = $self->$method;
-        next unless defined $val;
-        if ( ref $val eq 'ARRAY' ) {
-            my @flattened;
-            for my $obj (@$val) {
-                $obj->strip( leave => 'related_objects' );
-                my $f = $obj->column_value_pairs;
-                for ( keys %$f ) {
-                    if ( blessed( $f->{$_} ) && $f->{$_}->isa('DateTime') ) {
-                        $f->{$_} = "$f->{$_}";
-                    }
-                }
-                push( @flattened, $f );
-            }
-            $flat{$method} = \@flattened;
-        }
-        elsif ( blessed($val) and $val->isa('Rose::DB::Object') ) {
-
-            #$val->strip( leave => 'related_objects' );
-            $flat{$method} = $val->flatten;
-        }
-        else {
-
-            #$val->strip( leave => 'related_objects' );
-            $flat{$method} = $val->flatten;
-        }
-    }
-    return \%flat;
-}
-
-=head2 exists( [ @I<params> ] )
-
-Returns true if the object exists in the database, false otherwise.
-
-May be called as class or object method.
-
-This method uses the Rose::DB::Object::Manager class to check
-the database based on non-unique column(s). Call it like you
-would load_speculative() but when you do not have a unique combination
-of columns (which all the load* methods require).
-
-When called as object method, if @I<params> is omitted, 
-the current column values of the object are used.
-
-Example:
-
- # 'title' has no unique constraints on it
- my $object = Object->new(title => 'Foo');
- $object->save unless $object->exists;
-
-B<NOTE:> Using exists() as a way of enforcing data integrity
-is far inferior to actually placing a constraint on a table
-in the database. However, for things like testing and development
-data, it can be a useful utility method.
-
-=cut
-
-sub exists {
-    my $self = shift;
-    my @arg  = @_;
-    if ( !@arg && ref($self) ) {
-
-        # TODO use *method_name* instead ?
-        for my $col ( $self->meta->column_names ) {
-            push( @arg, $col, $self->$col ) if defined( $self->$col );
-        }
-    }
-    my $count = Rose::DB::Object::Manager->get_objects_count(
-        object_class => ref($self) || $self,
-        query => [@arg]
-    );
-
-    return $count if defined($count);
-    croak "Error: " . Rose::DB::Object::Manager->error;
-}
-
-=head2 has_related( I<relationship_name> )
-
-Returns the number of related objects defined by the I<relationship_name>
-accessor.
-
-Just a wrapper around the B<count> RDBO method type.
-
-=cut
-
-sub has_related {
-    my $self   = shift;
-    my $rel    = shift or croak "need Relationship name";
-    my $method = $rel . '_count';
-    return $self->$method;
-}
-
-=head2 has_related_pages( I<relationship_name>, I<page_size> )
-
-Returns the number of "pages" given I<page_size> for the count of related
-object for I<relationship_name>. Useful for creating pagers.
-
-=cut
-
-sub has_related_pages {
-    my $self   = shift;
-    my $rel    = shift or croak "need Relationship name";
-    my $pgsize = shift or croak "need page_size";
-    if ( $pgsize =~ m/\D/ ) {
-        croak "page_size must be an integer";
-    }
-    my $n = $self->has_related($rel);
-    return 0 if !$n;
-    if ( $n % $pgsize ) {
-        return int( $n / $pgsize ) + 1;
-    }
-    else {
-        return $n / $pgsize;
-    }
-}
-
-=head2 fetch_all
-
-Shortcut for the Manager method get_objects().
-
-=cut
-
-sub fetch_all {
-    my $self  = shift;
-    my $class = $self->meta->class;
-    return Rose::DB::Object::Manager->get_objects(
-        object_class => $class,
-        @_
-    );
-}
-
-=head2 fetch_all_iterator
-
-Shortcut for the Manager method get_objects_iterator().
-
-=cut
-
-sub fetch_all_iterator {
-    my $self  = shift;
-    my $class = $self->meta->class;
-    return Rose::DB::Object::Manager->get_objects_iterator(
-        object_class => $class,
-        @_
-    );
+sub schema_class_prefix {
+    shift->garden_prefix;
 }
 
 1;

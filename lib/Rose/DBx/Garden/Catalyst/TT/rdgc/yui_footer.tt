@@ -1,7 +1,1 @@
-<script type="text/javascript">
-/* <![CDATA[ */
-    if (YAHOO.rdgc.historyList && YAHOO.rdgc.historyList.length > 0) {
-        YAHOO.rdgc.init_histories();    // must come after ALL History modules are registered
-    }
-/* ]]> */    
-</script>
+[% PROCESS crud/yui_footer.tt %]

@@ -1,9 +1,1 @@
-  [% FOREACH css = page.css.unique %]
-  <link rel="stylesheet" type="text/css" media="all"
-        href="[% static_url %]/css/[% css %].css" />
-  [% END %]
-
-  [% FOREACH js = page.js.unique %]
-  <script type="text/javascript" 
-          src="[% static_url %]/js/[% js %].js"></script>
-  [% END %]
+[% PROCESS crud/page_head_maker.tt %]

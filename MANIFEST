@@ -3,7 +3,6 @@ MANIFEST
 Makefile.PL
 README
 lib/Rose/DBx/Garden/Catalyst.pm
-lib/Rose/DBx/Garden/Catalyst/Templates.pm
 t/00-load.t
 t/pod-coverage.t
 t/pod.t
@@ -12,7 +11,6 @@ lib/Rose/DBx/Garden/Catalyst/Form.pm
 lib/Rose/DBx/Garden/Catalyst/Form/Metadata.pm
 lib/Rose/DBx/Garden/Catalyst/Object.pm
 lib/Rose/DBx/Garden/Catalyst/TT.pm
-lib/Rose/DBx/Garden/Catalyst/TT/rdgc/add_row_panel.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/autocomplete.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/autocomplete_field.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/crud_buttons.tt
@@ -42,6 +40,4 @@ lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_menu.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_related_datatable_js.tt
 lib/Rose/DBx/Garden/Catalyst/View.pm
 lib/Rose/DBx/Garden/Catalyst/Excel.pm
-lib/Rose/DBx/Garden/Catalyst/YUI.pm
-lib/Rose/DBx/Garden/Catalyst/YUI/DataTable.pm
 META.yml                                 Module meta-data (added by MakeMaker)

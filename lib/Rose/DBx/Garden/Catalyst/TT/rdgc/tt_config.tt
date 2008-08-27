@@ -1,6 +1,1 @@
-[% # global vars, settings, etc.
-    DateTimeFormat = '%Y-%m-%d %H:%M:%S';
-    YUIBaseURL = 'http://yui.yahooapis.com';
-    YUIVersion = '2.5.1';
-%]
-
+[% PROCESS crud/tt_config.tt %]
