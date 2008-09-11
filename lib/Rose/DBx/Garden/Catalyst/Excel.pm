@@ -7,7 +7,7 @@ use Data::Dump qw( dump );
 use Class::C3;
 use Rose::DBx::Garden::Catalyst::TT;
 
-our $VERSION = '0.09_05';
+our $VERSION = '0.09';
 
 =head1 NAME
 

@@ -10,17 +10,27 @@ WriteMakefile(
     PL_FILES            => {},
     PREREQ_PM => {
         'Test::More' => 0,
-        'Rose::DBx::Garden' => 0.14,
+        'Rose::DBx::Garden' => 0.15,
         'Rose::DB::Object'  => 0.770,
-        'Rose::DBx::Object::MoreHelpers' => 0.01,
-        'Rose::HTMLx::Form::Related'     => 0.01,
-        'CatalystX::CRUD::YUI' => 0,
+        'Rose::DBx::Object::MoreHelpers' => 0.02,
+        'Rose::HTMLx::Form::Related'     => 0.07,
+        'CatalystX::CRUD::YUI' => 0.004,
         'Catalyst'          => 5.7,
-        'JSON::XS'          => 2.00,
+        'Catalyst::Plugin::ConfigLoader' => 0,
+        'Catalyst::Plugin::Static::Simple' => 0,
         'Data::Dump'        => 0,
         'Tree::Simple'      => 0,
         'Tree::Simple::Visitor::ToNestedHash' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean               => { FILES => 'Rose-DBx-Garden-Catalyst-*' },
+    clean               => { FILES => 'Rose-DBx-Garden-Catalyst-* t/lib/MyRDGC/lib/MyRDBO*
+                                       t/lib/MyRDGC/lib/MyRDGC/Controller/CRUD*
+                                       t/lib/MyRDGC/lib/MyRDGC/Model/*
+                                       t/lib/MyRDGC/lib/MyRDGC/Base
+                                       t/lib/MyRDGC/lib/MyRDGC/View/*
+                                       t/lib/MyRDGC/root/crud 
+                                       t/lib/MyRDGC/root/rdgc
+                                       t/lib/MyRDGC/root/static
+
+                            ' },
 );

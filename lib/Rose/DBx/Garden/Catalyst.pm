@@ -10,13 +10,14 @@ use Tree::Simple;
 use Tree::Simple::Visitor::ToNestedHash;
 use Class::Inspector;
 use File::Copy;
+use CatalystX::CRUD::YUI::TT;
 
 use Rose::Object::MakeMethods::Generic (
     'scalar --get_set_init' => [qw( catalyst_prefix controller_prefix )],
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.09_05';
+our $VERSION = '0.09';
 
 =head1 NAME
 
@@ -44,6 +45,11 @@ Rose::DBx::Garden::Catalyst - plant Roses in your Catalyst garden
     # run your script
     > perl mk_cat_garden.pl
     
+    # update your MyApp.pm file:
+     
+     __PACKAGE__->setup();
+     Class::C3::initialize();   # add this line
+        
     # start your Catalyst dev server
     > cd MyApp
     > perl script/myapp_server.pl
@@ -109,7 +115,7 @@ use base qw( Rose::DBx::Garden::Catalyst::Form );
 
 sub init_metadata {
     my \$self = shift;
-    return Rose::DBx::Garden::Catalyst::Form::Metadata->new( 
+    return \$self->metadata_class->new( 
         form                => \$self,
         controller_prefix   => '$controller_prefix',
     );
@@ -496,7 +502,6 @@ __PACKAGE__->config(
     primary_key             => ['$pk'],
     view_on_single_result   => 1,
     page_size               => 50,
-    schema_class_prefix     => '$base_rdbo_class',
 );
 
 1;

@@ -101,4 +101,7 @@ Revision history for Rose-DBx-Garden-Catalyst
           IF YOU ARE UPGRADING, you can symlink or rename rdgc => crud
 
 
+0.09    11 Sept 2008
+        * add real tests with example schema supplied by laust from #catalyst
+
 

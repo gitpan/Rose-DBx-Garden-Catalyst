@@ -1,12 +1,7 @@
 Changes
-MANIFEST
-Makefile.PL
-README
 lib/Rose/DBx/Garden/Catalyst.pm
-t/00-load.t
-t/pod-coverage.t
-t/pod.t
 lib/Rose/DBx/Garden/Catalyst/Controller.pm
+lib/Rose/DBx/Garden/Catalyst/Excel.pm
 lib/Rose/DBx/Garden/Catalyst/Form.pm
 lib/Rose/DBx/Garden/Catalyst/Form/Metadata.pm
 lib/Rose/DBx/Garden/Catalyst/Object.pm
@@ -39,5 +34,21 @@ lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_logger.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_menu.tt
 lib/Rose/DBx/Garden/Catalyst/TT/rdgc/yui_related_datatable_js.tt
 lib/Rose/DBx/Garden/Catalyst/View.pm
-lib/Rose/DBx/Garden/Catalyst/Excel.pm
+Makefile.PL
+MANIFEST
+README
+t/00-load.t
+t/01-rdgc.t
+t/lib/MyDB.pm
+t/lib/MyRDGC/lib/MyRDGC.pm
+t/lib/MyRDGC/lib/MyRDGC/Controller/Root.pm
+t/lib/MyRDGC/Makefile.PL
+t/lib/MyRDGC/myrdgc.yml
+t/lib/MyRDGC/root/favicon.ico
+t/lib/MyRDGC/script/myrdgc_fastcgi.pl
+t/lib/MyRDGC/script/myrdgc_server.pl
+t/lib/MyRDGC/script/myrdgc_test.pl
+t/pod-coverage.t
+t/pod.t
+t/rdgc.sql
 META.yml                                 Module meta-data (added by MakeMaker)
