@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Rose-DBx-Garden-Catalyst
-version:             0.09
+version:             0.10
 abstract:            plant Roses in your Catalyst garden
 license:             ~
 author:              
@@ -14,6 +14,7 @@ requires:
     CatalystX::CRUD::YUI:          0.004
     Data::Dump:                    0
     Rose::DB::Object:              0.77
+    Rose::DBx::AutoReconnect:      0
     Rose::DBx::Garden:             0.15
     Rose::DBx::Object::MoreHelpers: 0.02
     Rose::HTMLx::Form::Related:    0.07

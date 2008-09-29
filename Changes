@@ -105,3 +105,6 @@ Revision history for Rose-DBx-Garden-Catalyst
         * add real tests with example schema supplied by laust from #catalyst
 
 
+0.10    29 Sept 2008
+        * added missing req to Makefile.PL
+

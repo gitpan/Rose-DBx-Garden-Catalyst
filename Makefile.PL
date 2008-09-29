@@ -13,6 +13,7 @@ WriteMakefile(
         'Rose::DBx::Garden' => 0.15,
         'Rose::DB::Object'  => 0.770,
         'Rose::DBx::Object::MoreHelpers' => 0.02,
+        'Rose::DBx::AutoReconnect'       => 0,
         'Rose::HTMLx::Form::Related'     => 0.07,
         'CatalystX::CRUD::YUI' => 0.004,
         'Catalyst'          => 5.7,
