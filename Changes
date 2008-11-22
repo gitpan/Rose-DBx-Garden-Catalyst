@@ -112,3 +112,7 @@ Revision history for Rose-DBx-Garden-Catalyst
         * base controller no longer sets current_view
         * copy all static/css/crud/*.css files for CX::CRUD::YUI 0.008
 
+0.12    22 Nov 2008
+        * add missing req in Makefile.PL
+        * add IPC::Cmd dep so we can test for sqlite3 in tests
+

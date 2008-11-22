@@ -3,6 +3,10 @@ use Test::More tests => 6;
 use lib qw( t/lib t/lib/MyRDGC/lib );
 use Data::Dump qw( dump );
 use HTTP::Request::Common;
+use IPC::Cmd qw( can_run );
+
+SKIP: {
+    skip "sqlite3 is not in PATH", 6 unless can_run('sqlite3');
 
 use_ok('MyDB');
 use_ok('Rose::DBx::Garden::Catalyst');
@@ -32,3 +36,5 @@ is( $res->headers->{status}, 200, "200 ok" );
 
 # TODO more tests needed? or does CatalystX::CRUD::YUI cover
 # all the bases?
+
+}  # end SKIP

@@ -6,7 +6,7 @@ use Class::Inspector;
 use Path::Class;
 use Rose::DBx::Garden::Catalyst::TT;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 NAME
 

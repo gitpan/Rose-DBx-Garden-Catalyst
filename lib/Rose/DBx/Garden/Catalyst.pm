@@ -17,7 +17,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 NAME
 
@@ -271,7 +271,7 @@ sub make_catalyst {
     }
 
     # populate templates
-    # the idea is to create a 'rdgc' dir in MyApp/root/
+    # the idea is to create a 'crud' dir in MyApp/root/
     # with the PROCESS-able .tt files
     # and then add stub .tt files in each _tmpl_path
     # for the CRUD methods
@@ -299,17 +299,20 @@ sub make_catalyst {
             . dump( { id => 'schema_menu', items => \@menu_items } ) . '%]'
     );
 
+    # disable stubs for each controller to reduce noise
+    # now that CatalystX::CRUD::YUI::View will serve the default .tt
+    #
     # stubs for each controller
-    for my $ctrl (@controllers) {
-        my @tmpl_dir = $self->_tmpl_path_from_controller($ctrl);
-
-        for my $stub (qw( search edit view list count )) {
-            my $method = '_tt_stub_' . $stub;
-            $self->_write_tt_file(
-                file( $tt_dir, @tmpl_dir, $stub . '.tt' )->stringify,
-                $self->$method );
-        }
-    }
+    #for my $ctrl (@controllers) {
+    #        my @tmpl_dir = $self->_tmpl_path_from_controller($ctrl);
+    #
+    #        for my $stub (qw( search edit view list count )) {
+    #            my $method = '_tt_stub_' . $stub;
+    #            $self->_write_tt_file(
+    #                file( $tt_dir, @tmpl_dir, $stub . '.tt' )->stringify,
+    #                $self->$method );
+    #        }
+    #    }
 
     # css and js will not work out of the box anymore since
     # they are in the CatalystX::CRUD::YUI package.

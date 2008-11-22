@@ -7,7 +7,7 @@ use base qw( Rose::DB::Object );
 use base qw( Rose::DB::Object::Helpers );
 use base qw( Rose::DBx::Object::MoreHelpers );
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 NAME
 
