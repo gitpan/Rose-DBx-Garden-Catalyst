@@ -6,6 +6,7 @@ use base qw( Rose::DBx::AutoReconnect );
 use Carp;
 use FindBin;
 use Path::Class::File;
+use IPC::Cmd qw( run );
 
 my $db;
 my $sql;
@@ -27,7 +28,9 @@ $db  = Path::Class::File->new( $base_path, 'rdgc.db' );
 
 # create the db if it does not yet exist
 if ( !-s $db ) {
-    system("sqlite3 $db < $sql") and die "can't create $db with $sql: $!";
+    if (!scalar run( command => "sqlite3 $db < $sql", verbose => 1 ) ) {
+        die "can't create db $db with sqlite3: $!";
+    }
 }
 
 if ( !$db or !-s $db ) {

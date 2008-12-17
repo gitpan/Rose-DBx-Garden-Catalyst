@@ -4,7 +4,7 @@ use warnings;
 use base qw( Rose::HTMLx::Form::Related::RDBO );
 use Rose::DBx::Garden::Catalyst::Form::Metadata;
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 NAME
 

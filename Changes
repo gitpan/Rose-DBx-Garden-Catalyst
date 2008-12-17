@@ -116,3 +116,8 @@ Revision history for Rose-DBx-Garden-Catalyst
         * add missing req in Makefile.PL
         * add IPC::Cmd dep so we can test for sqlite3 in tests
 
+0.13    16 Dec 2008
+        * fixes for Perl 5.10 File::Copy
+        * use IPC::Cmd::run to create db in t/lib/MyDB.pm
+
+
