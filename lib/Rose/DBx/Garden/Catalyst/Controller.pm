@@ -7,9 +7,10 @@ use base qw(
 );
 use Carp;
 use Data::Dump qw( dump );
-use Class::C3;
+use MRO::Compat;
+use mro 'c3';
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 =head1 NAME
 

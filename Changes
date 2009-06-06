@@ -120,4 +120,6 @@ Revision history for Rose-DBx-Garden-Catalyst
         * fixes for Perl 5.10 File::Copy
         * use IPC::Cmd::run to create db in t/lib/MyDB.pm
 
-
+0.14    7 June 2009
+        * drop tables conditionally in rdgc.sql
+        * refactor C3 syntax

@@ -17,7 +17,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 =head1 NAME
 
@@ -57,8 +57,6 @@ Rose::DBx::Garden::Catalyst - plant Roses in your Catalyst garden
     # enjoy the fruits at http://localhost:3000/rdgc
 
 =head1 DESCRIPTION
-
-B<** DEVELOPMENT RELEASE -- API SUBJECT TO CHANGE **>
 
 Rose::DBx::Garden::Catalyst extends Rose::DBx::Garden to create
 Catalyst components that use the RDBO and RHTMLO classes that the Garden
@@ -343,7 +341,8 @@ sub make_catalyst {
     my $css_base_dir = dir( $cx_crud_yui_tt_path, 'static', 'css', 'crud' );
     while ( my $css_file = $css_base_dir->next ) {
         next unless -f $css_file;
-        copy( $css_file . '' , file( $css_crud_dir, $css_file->basename ) . '' )
+        copy( $css_file . '',
+            file( $css_crud_dir, $css_file->basename ) . '' )
             or warn "ERROR: failed to copy $css_file to $css_crud_dir\n";
     }
 
@@ -365,7 +364,7 @@ sub _make_menu_items {
         $item{txt} = $child;
         if ( keys %{ $children->{$child} } ) {
             $item{items}
-                = $self->_make_menu_item( $item{href}, $children->{$child} );
+                = $self->_make_menu_items( $item{href}, $children->{$child} );
         }
         elsif ( $child !~ m/^(Search|Create|List)$/ ) {
             $item{items} = $self->_make_menu_items( $item{href},
@@ -457,6 +456,8 @@ package ${cat_class}::Controller::${controller_prefix};
 use strict;
 use warnings;
 use base qw( Catalyst::Controller );
+use MRO::Compat;
+use mro 'c3';
 
 sub default : Path {
     my (\$self, \$c) = \@_;
@@ -490,6 +491,8 @@ sub _make_controller {
 package $contr_class;
 use strict;
 use base qw( ${catalyst_prefix}::Base::Controller::RHTMLO );
+use MRO::Compat;
+use mro 'c3';
 use $form_class;
 
 __PACKAGE__->config(
@@ -518,6 +521,8 @@ package ${catalyst_prefix}::Base::Controller::RHTMLO;
 use strict;
 use warnings;
 use base qw( Rose::DBx::Garden::Catalyst::Controller );
+use MRO::Compat;
+use mro 'c3';
 
 __PACKAGE__->config(
     default_view    => 'RDGC',
@@ -542,6 +547,8 @@ package ${catprefix}::Base::Model::RDBO;
 use strict;
 use warnings;
 use base qw( CatalystX::CRUD::Model::RDBO );
+use MRO::Compat;
+use mro 'c3';
 
 1;
 
@@ -556,6 +563,9 @@ sub _make_model {
 package $model_class;
 use strict;
 use base qw( ${catprefix}::Base::Model::RDBO );
+use MRO::Compat;
+use mro 'c3';
+
 __PACKAGE__->config(
     name                    => '$rdbo_class',
     page_size               => 50,
@@ -576,6 +586,8 @@ package ${cat_class}::View::RDGC;
 use strict;
 use warnings;
 use base qw( Rose::DBx::Garden::Catalyst::View );
+use MRO::Compat;
+use mro 'c3';
 
 1;
 
@@ -592,6 +604,8 @@ use strict;
 use warnings;
 use base qw( CatalystX::CRUD::View::Excel );
 use CatalystX::CRUD::YUI;
+use MRO::Compat;
+use mro 'c3';
 
 sub get_template_params {
     my ( \$self, \$c ) = \@_;

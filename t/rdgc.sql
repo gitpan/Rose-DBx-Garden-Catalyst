@@ -1,6 +1,6 @@
 /* SQL supplied by laust_frederiksen@hotmail.com */
 
-drop table addresses;
+drop table  if exists addresses;
 create table addresses
 (
     id           serial primary key,
@@ -10,7 +10,7 @@ create table addresses
     name4        char(40)
 );
 
-drop table suppliers;
+drop table  if exists suppliers;
 create table suppliers 
 (
     id          serial primary key,
@@ -21,7 +21,7 @@ create table suppliers
 
 create unique index suppliers_name on suppliers(name);
 
-drop table manufacturers;
+drop table  if exists manufacturers;
 create table manufacturers
 (
     id          serial primary key,
@@ -32,7 +32,7 @@ create table manufacturers
 
 create unique index manufacturers_name on manufacturers(name);
 
-drop table products;
+drop table  if exists products;
 create table products
 (
     id              serial primary key,
@@ -45,7 +45,7 @@ create table products
 
 create unique index products_manufacturer_name on products(manufacturer,name);
 
-drop table locations;
+drop table  if exists locations;
 create table locations
 (
     id          serial primary key,
@@ -56,7 +56,7 @@ create table locations
 
 create unique index locations_name on locations(name);
 
-drop table stocks;
+drop table  if exists stocks;
 create table stocks
 (
     id          serial primary key,
@@ -69,7 +69,7 @@ create table stocks
 
 create unique index stocks_location_product on stocks(location,product);
 
-drop table customers;
+drop table  if exists customers;
 create table customers
 (
     id          integer    auto increment not null,
@@ -80,7 +80,7 @@ create table customers
 
 create unique index customers_name on customers(name);
 
-drop table invoices;
+drop table  if exists invoices;
 create table invoices
 (
     id          integer auto increment not null,
@@ -92,7 +92,7 @@ create table invoices
     foreign key (address) references addresses (id)
 );
 
-drop table lines;
+drop table  if exists lines;
 create table lines
 (
     id          serial primary key,
