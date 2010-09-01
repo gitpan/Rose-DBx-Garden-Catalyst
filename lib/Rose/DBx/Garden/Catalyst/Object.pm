@@ -9,7 +9,7 @@ use base qw( Rose::DBx::Object::MoreHelpers );
 use MRO::Compat;
 use mro 'c3';
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 =head1 NAME
 

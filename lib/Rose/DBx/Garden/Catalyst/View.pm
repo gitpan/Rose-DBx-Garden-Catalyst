@@ -8,7 +8,7 @@ use Rose::DBx::Garden::Catalyst::TT;
 use MRO::Compat;
 use mro 'c3';
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 =head1 NAME
 

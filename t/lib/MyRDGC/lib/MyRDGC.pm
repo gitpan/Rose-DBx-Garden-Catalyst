@@ -5,7 +5,7 @@ use warnings;
 
 use Catalyst::Runtime '5.70';
 
-use Catalyst qw/ ConfigLoader Static::Simple /;
+use Catalyst qw/ Static::Simple /;
 
 our $VERSION = '0.01';
 

@@ -43,7 +43,6 @@ t/lib/MyDB.pm
 t/lib/MyRDGC/lib/MyRDGC.pm
 t/lib/MyRDGC/lib/MyRDGC/Controller/Root.pm
 t/lib/MyRDGC/Makefile.PL
-t/lib/MyRDGC/myrdgc.yml
 t/lib/MyRDGC/root/favicon.ico
 t/lib/MyRDGC/script/myrdgc_fastcgi.pl
 t/lib/MyRDGC/script/myrdgc_server.pl

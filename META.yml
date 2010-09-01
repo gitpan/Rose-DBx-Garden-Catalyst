@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Rose-DBx-Garden-Catalyst
-version:            0.14
+version:            0.15
 abstract:           plant Roses in your Catalyst garden
 author:
     - Peter Karman <karman@cpan.org>
@@ -12,7 +12,6 @@ build_requires:
     ExtUtils::MakeMaker:  0
 requires:
     Catalyst:             5.7
-    Catalyst::Plugin::ConfigLoader:  0
     Catalyst::Plugin::Static::Simple:  0
     CatalystX::CRUD:      0.43
     CatalystX::CRUD::Model::RDBO:  0.2
@@ -33,7 +32,7 @@ no_index:
     directory:
         - t
         - inc
-generated_by:       ExtUtils::MakeMaker version 6.50
+generated_by:       ExtUtils::MakeMaker version 6.54
 meta-spec:
     url:      http://module-build.sourceforge.net/META-spec-v1.4.html
     version:  1.4

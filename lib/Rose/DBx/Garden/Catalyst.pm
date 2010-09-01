@@ -17,7 +17,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 =head1 NAME
 
@@ -59,8 +59,12 @@ Rose::DBx::Garden::Catalyst - plant Roses in your Catalyst garden
 =head1 DESCRIPTION
 
 Rose::DBx::Garden::Catalyst extends Rose::DBx::Garden to create
-Catalyst components that use the RDBO and RHTMLO classes that the Garden
-class produces.
+Catalyst component scaffolding.  These created components use the RDBO
+and RHTMLO classes that the Garden class produces.  The base
+Controller, Model and View classes are simple subclasses of
+CatalystX::CRUD::YUI.
+
+This module works on the assumption that 1 table == 1 form == 1 controller class == 1 model class.
 
 By default this class creates stub Template Toolkit files for use
 with the RDBO and RHTMLO CRUD components. If you use a different templating

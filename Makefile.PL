@@ -19,7 +19,6 @@ WriteMakefile(
         'CatalystX::CRUD::YUI'           => 0.017,
         'CatalystX::CRUD::Model::RDBO'   => 0.20,
         'Catalyst'          => 5.7,
-        'Catalyst::Plugin::ConfigLoader' => 0,
         'Catalyst::Plugin::Static::Simple' => 0,
         'Data::Dump'        => 0,
         'Tree::Simple'      => 0,
