@@ -17,7 +17,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 =head1 NAME
 
@@ -34,21 +34,38 @@ Rose::DBx::Garden::Catalyst - plant Roses in your Catalyst garden
     use MyDB;  # isa Rose::DB
     
     my $garden = Rose::DBx::Garden::Catalyst->new(
-                    catalyst_prefix => 'MyApp',
-                    garden_prefix   => 'MyRDBO',
-                    db              => MyDB->new,
-                    tt              => 1,  # make Template Toolkit files
-                    );
+        catalyst_prefix   => 'MyApp',
+        controller_prefix => 'RDGC',
+        garden_prefix     => 'MyRDBO',
+        db                => MyDB->new,
+        tt                => 1,  # make Template Toolkit files
+    );
                     
     $garden->plant('MyApp/lib');
     
     # run your script
     > perl mk_cat_garden.pl
     
-    # update your MyApp.pm file:
+    # edit your MyApp.pm file:
+    > vi MyApp/lib/MyApp.pm
      
-     __PACKAGE__->setup();
-     Class::C3::initialize();   # add this line
+     # serve static assets
+     use Catalyst qw/
+         Static::Simple::ByClass
+     /;
+     
+     __PACKAGE__->config(
+        'Plugin::Static::Simple::ByClass' => {
+            classes => [qw( CatalystX::CRUD::YUI::TT )],
+        }
+     );
+    
+     # after __PACKAGE__->setup();
+     # add these lines:
+     
+     use MRO::Compat;
+     use mro 'c3';
+     Class::C3::initialize();
         
     # start your Catalyst dev server
     > cd MyApp

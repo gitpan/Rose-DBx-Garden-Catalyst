@@ -127,3 +127,8 @@ Revision history for Rose-DBx-Garden-Catalyst
 0.15    31 Aug 2010
         * pod patches from movingtarget@mackler.org
         * remove .yml config file and plugin dependency
+
+0.16    31 Oct 2012
+        * more pod patches from Adam Mackler
+        * improve docs
+

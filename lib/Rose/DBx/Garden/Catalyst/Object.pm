@@ -9,7 +9,7 @@ use base qw( Rose::DBx::Object::MoreHelpers );
 use MRO::Compat;
 use mro 'c3';
 
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 =head1 NAME
 
@@ -33,7 +33,10 @@ See Rose::DBx::Object::MoreHelpers.
 
 Returns garden_prefix() value. schema_class_prefix() is used
 by Rose::HTMLx::Form::Related while garden_prefix() is what
-Rose::DBx::Garden sets.
+Rose::DBx::Garden sets. See the documentation for
+L<Rose::HTMLx::Form::Related::Metadata/discover_relationships> for
+details on how garden_prefix must be set to correctly determine
+Catalyst Controller names when using related HTML forms.
 
 =cut
 

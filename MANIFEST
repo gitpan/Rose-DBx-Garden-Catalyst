@@ -50,4 +50,5 @@ t/lib/MyRDGC/script/myrdgc_test.pl
 t/pod-coverage.t
 t/pod.t
 t/rdgc.sql
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)
