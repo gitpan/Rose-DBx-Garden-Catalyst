@@ -17,7 +17,7 @@ use Rose::Object::MakeMethods::Generic (
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 =head1 NAME
 
@@ -58,6 +58,7 @@ Rose::DBx::Garden::Catalyst - plant Roses in your Catalyst garden
         'Plugin::Static::Simple::ByClass' => {
             classes => [qw( CatalystX::CRUD::YUI::TT )],
         }
+        'default_view' => 'RDGC',
      );
     
      # after __PACKAGE__->setup();

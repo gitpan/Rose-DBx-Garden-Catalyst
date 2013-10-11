@@ -5,7 +5,7 @@ use Carp;
 use Data::Dump qw( dump );
 use base qw( Rose::HTMLx::Form::Related::RDBO::Metadata );
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 use Rose::Object::MakeMethods::Generic (
     'scalar --get_set_init' => [ 'yui_datatable_methods', ], );

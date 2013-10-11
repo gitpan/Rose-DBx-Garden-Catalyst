@@ -4,7 +4,7 @@
       "Peter Karman <karman@cpan.org>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 6.62, CPAN::Meta::Converter version 2.112150",
+   "generated_by" : "ExtUtils::MakeMaker version 6.62, CPAN::Meta::Converter version 2.132510",
    "license" : [
       "perl_5"
    ],
@@ -22,33 +22,33 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "ExtUtils::MakeMaker" : 0
+            "ExtUtils::MakeMaker" : "0"
          }
       },
       "configure" : {
          "requires" : {
-            "ExtUtils::MakeMaker" : 0
+            "ExtUtils::MakeMaker" : "0"
          }
       },
       "runtime" : {
          "requires" : {
             "Catalyst" : "5.7",
-            "Catalyst::Plugin::Static::Simple" : 0,
+            "Catalyst::Plugin::Static::Simple" : "0",
             "CatalystX::CRUD" : "0.43",
             "CatalystX::CRUD::Model::RDBO" : "0.2",
             "CatalystX::CRUD::YUI" : "0.017",
-            "Class::C3" : 0,
-            "Data::Dump" : 0,
-            "IPC::Cmd" : 0,
-            "MRO::Compat" : 0,
+            "Class::C3" : "0",
+            "Data::Dump" : "0",
+            "IPC::Cmd" : "0",
+            "MRO::Compat" : "0",
             "Rose::DB::Object" : "0.77",
-            "Rose::DBx::AutoReconnect" : 0,
+            "Rose::DBx::AutoReconnect" : "0",
             "Rose::DBx::Garden" : "0.15",
             "Rose::DBx::Object::MoreHelpers" : "0.06",
             "Rose::HTMLx::Form::Related" : "0.12",
-            "Test::More" : 0,
-            "Tree::Simple" : 0,
-            "Tree::Simple::Visitor::ToNestedHash" : 0,
+            "Test::More" : "0",
+            "Tree::Simple" : "0",
+            "Tree::Simple::Visitor::ToNestedHash" : "0",
             "perl" : "5.008003"
          }
       }
@@ -66,5 +66,5 @@
          "url" : "https://github.com/karpet/rose-dbx-garden-catalyst"
       }
    },
-   "version" : "0.16"
+   "version" : "0.17"
 }
