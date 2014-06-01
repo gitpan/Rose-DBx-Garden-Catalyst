@@ -1,36 +1,43 @@
-Revision history for Rose-DBx-Garden-Catalyst
+Revision history for Perl module Rose::DBx::Garden::Catalyst
 
-0.17 11 Oct 2013
+0.180 2014-05-31
+ - update test app scripts with latest catalyst.pl
+ - tweek .sql to make autoincrement PKs work for sqlite3
+ - change Plugin::Static::Simple to Plugin::Static::Simple::ByClass
+   for test app (now matches SYNOPSIS)
+ - switch to File::Slurp::Tiny
+
+0.17 2013-10-11
  - fix SYNOPSIS to add note about default_view
 
-0.16 31 Oct 2012
+0.16 2012-10-31
  - more pod patches from Adam Mackler
  - improve docs
 
-0.15 31 Aug 2010
+0.15 2010-08-31
  - pod patches from movingtarget@mackler.org
  - remove .yml config file and plugin dependency
 
-0.14 7 June 2009
+0.14 2009-06-07
  - drop tables conditionally in rdgc.sql
  - refactor C3 syntax
 
-0.13 16 Dec 2008
+0.13 2008-12-16
  - fixes for Perl 5.10 File::Copy
  - use IPC::Cmd::run to create db in t/lib/MyDB.pm
 
-0.12 22 Nov 2008
+0.12 2008-11-22
  - add missing req in Makefile.PL
  - add IPC::Cmd dep so we can test for sqlite3 in tests
 
-0.11 18 Nov 2008
+0.11 2008-11-18
  - base controller no longer sets current_view
  - copy all static/css/crud/*.css files for CX::CRUD::YUI 0.008
 
-0.10 29 Sept 2008
+0.10 2008-09-29
  - added missing req to Makefile.PL
 
-0.09_05 27 Aug 2008
+0.09_05 2008-08-27
  - fix UTF-8 encoding bug where JSON:XS utf8() flag was incorrectly set to
    'on'.
  - move bulk of the code into smaller packages: CatalystX::CRUD::YUI
@@ -40,10 +47,10 @@ Revision history for Rose-DBx-Garden-Catalyst
  - changed the default root/<dir> to 'crud' instead of 'rdgc' IF YOU ARE
    UPGRADING, you can symlink or rename rdgc => crud
 
-0.09_04 11 Aug 2008
+0.09_04 2008-08-11
  - update .tt and .pm files to support multi-column PKs
 
-0.09_03 31 July 2008
+0.09_03 2008-07-31
  - split up rdgc/footer.tt into yui_footer.tt
  - add default_sort_by() to Form::Metadata
  - toggle rowsPerPage via select popup
@@ -54,12 +61,12 @@ Revision history for Rose-DBx-Garden-Catalyst
  - link_panel now uses same YAHOO ResizePanel widget as addRowPanel
  - use double ;; in primary_key_uri_escaped() to match CatalystX::CRUD 0.28
 
-0.09_02 30 June 2008
+0.09_02 2008-06-30
  - several small bug fixes with .tt files
  - allow for related_field mapping at init time
  - fix autocomplete CSS 
 
-0.09_01 13 Jun 2008
+0.09_01 2008-06-13
  - use column as label if not defined in form
  - add support for file upload fields in form.tt
  - add support for alternate relationship labels in base Form class
@@ -75,10 +82,10 @@ Revision history for Rose-DBx-Garden-Catalyst
  - complete refactor of all generated code to move much of it into real
    base classes and installed .tt
 
-0.09 11 Sept 2008
+0.09 2008-09-11
  - add real tests with example schema supplied by laust from #catalyst
 
-0.08 01 Feb 2008
+0.08 2008-02-01
  - make yui detail link toggle based on can_write() method of target
    controller. (This might not work for relationship controllers...)
  - fix confess/croak error in generated form class
@@ -100,27 +107,27 @@ Revision history for Rose-DBx-Garden-Catalyst
    rather than TT Date plugin
  - add Boolean field support to readonly feature in form.tt
 
-0.07 21 Dec 2007
+0.07 2007-12-21
  - added comment to precommit() to catch non-NULL empty ints. This feature
    should be unnecessary as of RHTMLO 0.552 so send warn() to $c->log now
    to indicate if it was not caught at RHTMLO level.
  - switch to top-level JSON 2.00 API.
 
-0.06 11 Dec 2007
+0.06 2007-12-11
  - changed default field sort order to sort by rank (tabindex) to match the
    order set in RDG.
 
-0.05 11 Dec 2007
+0.05 2007-12-11
  - added show_related_values() method to base Form and refactored .tt
    yui_datatable code to use it.
 
-0.04 6 Dec 2007
+0.04 2007-12-06
  - split out show_relationships.tt into its own file
  - show hidden fields by default when searching  (to allow for searching by
    serial PKs, e.g.)
  - fix bug when getting controller for current action.
 
-0.03 19 Nov 2007
+0.03 2007-11-19
  - YUI support for related records
  - refactored all tt files into Templates class
  - rename yui_datatable* templates to match url convention
@@ -128,7 +135,7 @@ Revision history for Rose-DBx-Garden-Catalyst
  - add Create/Search to menu
  - bumped req versions of CatalystX::CRUD::*
 
-0.02 12 Nov 2007
+0.02 2007-11-12
  - fix SYNOPSIS example doc for plant() syntax
  - use Base controller and model classes for easier global management
  - use YAML::Syck directly in View instead of hacked local plugin
@@ -136,6 +143,6 @@ Revision history for Rose-DBx-Garden-Catalyst
    (because unless your system is actually in UTC, they're likely wrong)
  - clean up YUI dependency URLs
 
-0.01 9 Nov 2007
+0.01 2007-11-09
  - First version, released on an unsuspecting world.
 

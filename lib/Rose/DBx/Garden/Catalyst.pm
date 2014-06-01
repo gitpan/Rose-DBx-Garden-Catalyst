@@ -11,13 +11,14 @@ use Tree::Simple::Visitor::ToNestedHash;
 use Class::Inspector;
 use File::Copy;
 use CatalystX::CRUD::YUI::TT;
+use File::Slurp::Tiny;
 
 use Rose::Object::MakeMethods::Generic (
     'scalar --get_set_init' => [qw( catalyst_prefix controller_prefix )],
     boolean                 => [ 'tt' => { default => 1 }, ]
 );
 
-our $VERSION = '0.17';
+our $VERSION = '0.180';
 
 =head1 NAME
 
@@ -411,7 +412,7 @@ sub _write_tt_file {
     $path->mkpath(1) if $path;
 
     print "writing $tt\n";
-    File::Slurp::write_file( $tt, $buf );    # Garden.pm uses File::Slurp
+    File::Slurp::Tiny::write_file( $tt, $buf );    # Garden.pm uses File::Slurp::Tiny
 }
 
 sub _tt_default_page {
